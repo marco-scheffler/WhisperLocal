@@ -30,4 +30,18 @@ enum Preferences {
             }
         }
     }
+
+    private static let languageKey = "WhisperLocal.language"
+
+    /// nil = auto-detect; otherwise an ISO 639-1 code like "de" or "en".
+    static var language: String? {
+        get { UserDefaults.standard.string(forKey: languageKey) }
+        set {
+            if let v = newValue {
+                UserDefaults.standard.set(v, forKey: languageKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: languageKey)
+            }
+        }
+    }
 }

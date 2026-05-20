@@ -89,8 +89,12 @@ actor WhisperEngine: Transcribing {
     func transcribe(samples: [Float], language: String?) async throws -> String {
         try await ensureLoaded()
         guard let box = pipelineBox else { return "" }
-        Log.info("WhisperEngine:transcribing \(samples.count) samples (\(Double(samples.count)/16000.0)s)")
-        let options = DecodingOptions(language: language)
+        Log.info("WhisperEngine:transcribing \(samples.count) samples (\(Double(samples.count)/16000.0)s), language=\(language ?? "auto")")
+        let options = DecodingOptions(
+            task: .transcribe,
+            language: language,
+            detectLanguage: language == nil
+        )
         do {
             let results = try await box.value.transcribe(audioArray: samples, decodeOptions: options)
             let text = results

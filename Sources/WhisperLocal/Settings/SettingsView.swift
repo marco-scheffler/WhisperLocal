@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @State private var hotkey: HotKeyBinding = Preferences.hotkey
     @State private var llmEnabled: Bool = Preferences.llmEnabled
+    @State private var language: String = Preferences.language ?? ""
     @ObservedObject var modelStatus: ModelStatus = AppDelegate.modelStatus
 
     var onHotkeyChange: (HotKeyBinding) -> Void
@@ -35,6 +36,15 @@ struct SettingsView: View {
                     onInputDeviceChange(uid)
                 }
             }
+            Section("Language") {
+                Picker("", selection: $language) {
+                    Text("Auto-detect").tag("")
+                    Text("German (Deutsch)").tag("de")
+                    Text("English").tag("en")
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+            }
             Section("Hotkey") {
                 HotKeyCaptureView(binding: $hotkey)
                     .frame(height: 36)
@@ -62,6 +72,9 @@ struct SettingsView: View {
         .onChange(of: llmEnabled) { _, new in
             Preferences.llmEnabled = new
             onLLMChange(new)
+        }
+        .onChange(of: language) { _, new in
+            Preferences.language = new.isEmpty ? nil : new
         }
     }
 

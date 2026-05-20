@@ -76,7 +76,7 @@ final class DictationController: ObservableObject {
 
         let raw: String
         do {
-            raw = try await transcriber.transcribe(samples: samples, language: nil)
+            raw = try await transcriber.transcribe(samples: samples, language: Preferences.language)
         } catch {
             Log.info("DictationController:transcribe error: \(error)")
             await fail(message: "Transcribe failed: \(error.localizedDescription)")
