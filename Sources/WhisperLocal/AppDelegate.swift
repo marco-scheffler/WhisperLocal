@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeys: HotKeyManager?
     private var menuBar: MenuBarController?
     private var cancellables: Set<AnyCancellable> = []
+    private let settingsWindow = SettingsWindow()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBar = MenuBarController()
@@ -38,6 +39,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mgr.onPressed  = { Task { @MainActor in await c.handleHotKey(pressed: true) } }
         mgr.onReleased = { Task { @MainActor in await c.handleHotKey(pressed: false) } }
         hotKeys = mgr
+
+        settingsWindow.onHotkeyChange = { [weak self] new in self?.hotKeys?.update(binding: new) }
+        settingsWindow.onLLMChange = { [weak self] new in self?.controller?.llmEnabled = new }
+
+        NotificationCenter.default.addObserver(
+            forName: .openSettings,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.settingsWindow.show() }
+        }
 
         NSLog("WhisperLocal launched")
     }
