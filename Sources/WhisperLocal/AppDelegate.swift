@@ -12,11 +12,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables: Set<AnyCancellable> = []
     private let settingsWindow = SettingsWindow()
 
+    private var whisper: WhisperEngine?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBar = MenuBarController()
 
         let modelStore = ModelStore()
         let whisper = WhisperEngine(modelStore: modelStore)
+        self.whisper = whisper
         let llm = LLMPostProcessor()
 
         let c = DictationController(
@@ -52,5 +55,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NSLog("WhisperLocal launched")
+
+        // Kick off model warmup so the first transcription does not stall on download.
+        Task { [weak self] in
+            guard let self else { return }
+            let overlay = self.overlay
+            await whisper.setProgressHandlers(
+                onDownloadProgress: { progress in
+                    Task { @MainActor in
+                        overlay.state.phase = .downloadingModel(progress: progress)
+                        overlay.show()
+                    }
+                },
+                onLoadStarted: {
+                    Task { @MainActor in
+                        overlay.state.phase = .loadingModel
+                    }
+                },
+                onReady: {
+                    Task { @MainActor in
+                        overlay.hide()
+                    }
+                }
+            )
+            do {
+                try await whisper.warmup()
+            } catch {
+                await MainActor.run {
+                    overlay.state.phase = .error("Model load failed: \(error.localizedDescription)")
+                }
+                NSLog("WhisperLocal: warmup error: \(error)")
+            }
+        }
     }
 }

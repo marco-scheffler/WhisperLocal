@@ -2,6 +2,8 @@ import Combine
 
 enum OverlayPhase: Equatable {
     case hidden
+    case downloadingModel(progress: Double)
+    case loadingModel
     case recording
     case transcribing
     case postProcessing

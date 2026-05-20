@@ -18,12 +18,16 @@ struct OverlayView: View {
 
     @ViewBuilder private var indicator: some View {
         switch state.phase {
+        case .downloadingModel(let progress):
+            ProgressView(value: progress)
+                .progressViewStyle(.circular)
+                .controlSize(.small)
+        case .loadingModel, .transcribing, .postProcessing:
+            ProgressView().controlSize(.small)
         case .recording:
             Circle().fill(.red).frame(width: 10, height: 10)
                 .scaleEffect(1 + CGFloat(min(state.level * 4, 1)))
                 .animation(.easeOut(duration: 0.1), value: state.level)
-        case .transcribing, .postProcessing:
-            ProgressView().controlSize(.small)
         case .injecting:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         case .error:
@@ -36,6 +40,9 @@ struct OverlayView: View {
     private var label: String {
         switch state.phase {
         case .hidden: return ""
+        case .downloadingModel(let progress):
+            return String(format: "Downloading model %.0f%%", progress * 100)
+        case .loadingModel: return "Loading model\u{2026}"
         case .recording: return "Recording\u{2026}"
         case .transcribing: return "Transcribing\u{2026}"
         case .postProcessing: return "Cleaning up\u{2026}"

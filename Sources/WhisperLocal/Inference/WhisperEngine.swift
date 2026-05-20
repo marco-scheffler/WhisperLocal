@@ -14,29 +14,76 @@ actor WhisperEngine: Transcribing {
     private let modelStore: ModelStore
     private var pipelineBox: WhisperKitBox?
 
+    /// Receives the progress fraction (0.0–1.0) while the model is downloading.
+    /// Called on an unspecified actor — hop to MainActor before touching UI.
+    var onDownloadProgress: (@Sendable (Double) -> Void)?
+    /// Called when download finishes and load starts.
+    var onLoadStarted: (@Sendable () -> Void)?
+    /// Called when the model is fully ready.
+    var onReady: (@Sendable () -> Void)?
+
     init(modelStore: ModelStore, modelName: String = "large-v3-v20240930_626MB") {
         self.modelStore = modelStore
         self.modelName = modelName
     }
 
+    func setProgressHandlers(
+        onDownloadProgress: (@Sendable (Double) -> Void)? = nil,
+        onLoadStarted: (@Sendable () -> Void)? = nil,
+        onReady: (@Sendable () -> Void)? = nil
+    ) {
+        self.onDownloadProgress = onDownloadProgress
+        self.onLoadStarted = onLoadStarted
+        self.onReady = onReady
+    }
+
     func ensureLoaded() async throws {
         if pipelineBox != nil { return }
-        NSLog("WhisperEngine: loading model \(modelName) (downloadBase=\(modelStore.whisperModelDirectory.path))")
+
+        let modelFolderURL: URL
+        let expectedFolderName = "openai_whisper-\(modelName)"
+        let candidate = modelStore.whisperModelDirectory
+            .appendingPathComponent("models/argmaxinc/whisperkit-coreml/\(expectedFolderName)")
+
+        if FileManager.default.fileExists(atPath: candidate.path) {
+            NSLog("WhisperEngine: reusing cached model at \(candidate.path)")
+            modelFolderURL = candidate
+        } else {
+            NSLog("WhisperEngine: downloading model \(modelName)")
+            let progressCallback = onDownloadProgress
+            modelFolderURL = try await WhisperKit.download(
+                variant: modelName,
+                downloadBase: modelStore.whisperModelDirectory,
+                from: "argmaxinc/whisperkit-coreml"
+            ) { progress in
+                progressCallback?(progress.fractionCompleted)
+            }
+            NSLog("WhisperEngine: download complete at \(modelFolderURL.path)")
+        }
+
+        onLoadStarted?()
+        NSLog("WhisperEngine: loading WhisperKit pipeline")
         let config = WhisperKitConfig(
             model: modelName,
-            downloadBase: modelStore.whisperModelDirectory,
+            modelFolder: modelFolderURL.path,
             verbose: true,
             logLevel: .info,
             load: true,
-            download: true
+            download: false
         )
         do {
             pipelineBox = WhisperKitBox(try await WhisperKit(config))
-            NSLog("WhisperEngine: model loaded")
+            NSLog("WhisperEngine: model ready")
+            onReady?()
         } catch {
             NSLog("WhisperEngine: model load failed: \(error)")
             throw error
         }
+    }
+
+    /// Eagerly download + load the model. Safe to call at app launch.
+    func warmup() async throws {
+        try await ensureLoaded()
     }
 
     func transcribe(samples: [Float], language: String?) async throws -> String {
