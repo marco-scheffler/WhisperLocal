@@ -4,11 +4,13 @@ struct SettingsView: View {
     @State private var hotkey: HotKeyBinding = Preferences.hotkey
     @State private var llmEnabled: Bool = Preferences.llmEnabled
     @State private var language: String = Preferences.language ?? ""
+    @State private var recordingMode: RecordingMode = Preferences.recordingMode
     @ObservedObject var modelStatus: ModelStatus = AppDelegate.modelStatus
 
     var onHotkeyChange: (HotKeyBinding) -> Void
     var onLLMChange: (Bool) -> Void
     var onInputDeviceChange: (String?) -> Void
+    var onRecordingModeChange: (RecordingMode) -> Void
 
     var body: some View {
         Form {
@@ -51,6 +53,12 @@ struct SettingsView: View {
                 Button("Reset to default") {
                     hotkey = .default
                 }
+                Picker("Mode", selection: $recordingMode) {
+                    ForEach(RecordingMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
             }
             Section("Post-processing") {
                 Toggle("Clean transcript with local LLM", isOn: $llmEnabled)
@@ -75,6 +83,10 @@ struct SettingsView: View {
         }
         .onChange(of: language) { _, new in
             Preferences.language = new.isEmpty ? nil : new
+        }
+        .onChange(of: recordingMode) { _, new in
+            Preferences.recordingMode = new
+            onRecordingModeChange(new)
         }
     }
 

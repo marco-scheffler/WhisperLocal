@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             overlay: overlay
         )
         c.llmEnabled = Preferences.llmEnabled
+        c.recordingMode = Preferences.recordingMode
         recorder.inputDeviceUID = Preferences.inputDeviceUID
         controller = c
 
@@ -49,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindow.onHotkeyChange = { [weak self] new in self?.hotKeys?.update(binding: new) }
         settingsWindow.onLLMChange = { [weak self] new in self?.controller?.llmEnabled = new }
         settingsWindow.onInputDeviceChange = { [weak self] uid in self?.recorder.inputDeviceUID = uid }
+        settingsWindow.onRecordingModeChange = { [weak self] mode in self?.controller?.recordingMode = mode }
 
         NotificationCenter.default.addObserver(
             forName: .openSettings,

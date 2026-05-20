@@ -69,6 +69,7 @@ final class DictationControllerTests: XCTestCase {
             injector: TextInjector(),
             overlay: OverlayWindow()
         )
+        controller.recordingMode = .pushToTalk
 
         // Start recording
         await controller.handleHotKey(pressed: true)
@@ -97,6 +98,7 @@ final class DictationControllerTests: XCTestCase {
             injector: TextInjector(),
             overlay: OverlayWindow()
         )
+        controller.recordingMode = .pushToTalk
 
         await controller.handleHotKey(pressed: true)
         XCTAssertEqual(controller.state, .recording)
@@ -122,6 +124,7 @@ final class DictationControllerTests: XCTestCase {
             injector: TextInjector(),
             overlay: OverlayWindow()
         )
+        controller.recordingMode = .pushToTalk
 
         await controller.handleHotKey(pressed: true)
         // After mic error the controller goes through fail() which sleeps 1.5 s then resets.
@@ -144,6 +147,7 @@ final class DictationControllerTests: XCTestCase {
             injector: TextInjector(),
             overlay: OverlayWindow()
         )
+        controller.recordingMode = .pushToTalk
 
         await controller.handleHotKey(pressed: true)
         XCTAssertEqual(controller.state, .recording)
@@ -153,10 +157,10 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .idle)
     }
 
-    // MARK: Double-press guard: second press while recording is ignored
+    // MARK: Push-to-talk: holding the key past the initial press stays in .recording
 
     @MainActor
-    func testDoublePressIsIgnored() async throws {
+    func testPushToTalkDoublePressIsIgnored() async throws {
         let recorder = MockRecorder()
         let controller = DictationController(
             recorder: recorder,
@@ -165,12 +169,36 @@ final class DictationControllerTests: XCTestCase {
             injector: TextInjector(),
             overlay: OverlayWindow()
         )
+        controller.recordingMode = .pushToTalk
 
         await controller.handleHotKey(pressed: true)
         XCTAssertEqual(controller.state, .recording)
 
-        // Second press while already recording must not change state.
+        // Second press while still holding must not change state (PTT semantics).
         await controller.handleHotKey(pressed: true)
         XCTAssertEqual(controller.state, .recording)
+    }
+
+    // MARK: Toggle: second press stops recording
+
+    @MainActor
+    func testToggleSecondPressStops() async throws {
+        let recorder = MockRecorder()
+        let controller = DictationController(
+            recorder: recorder,
+            transcriber: MockTranscriber(),
+            postProcessor: nil,
+            injector: TextInjector(),
+            overlay: OverlayWindow()
+        )
+        controller.recordingMode = .toggle
+
+        await controller.handleHotKey(pressed: true)
+        XCTAssertEqual(controller.state, .recording)
+
+        // Second press toggles into the stop/transcribe/inject pipeline.
+        await controller.handleHotKey(pressed: true)
+        try await waitForIdle(controller, timeout: 4.0)
+        XCTAssertEqual(controller.state, .idle)
     }
 }

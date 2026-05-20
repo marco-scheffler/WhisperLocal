@@ -44,4 +44,29 @@ enum Preferences {
             }
         }
     }
+
+    private static let recordingModeKey = "WhisperLocal.recordingMode"
+
+    static var recordingMode: RecordingMode {
+        get {
+            guard let raw = UserDefaults.standard.string(forKey: recordingModeKey),
+                  let m = RecordingMode(rawValue: raw) else { return .toggle }
+            return m
+        }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: recordingModeKey) }
+    }
+}
+
+enum RecordingMode: String, CaseIterable, Identifiable, Sendable {
+    case pushToTalk
+    case toggle
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .pushToTalk: return "Push-to-talk (hold)"
+        case .toggle: return "Toggle (tap; auto-stop on silence)"
+        }
+    }
 }
