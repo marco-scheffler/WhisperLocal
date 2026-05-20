@@ -4,3 +4,4 @@
 DerivedData/
 .DS_Store
 WhisperLocal.app/
+dist/
