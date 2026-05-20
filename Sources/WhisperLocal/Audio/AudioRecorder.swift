@@ -25,6 +25,8 @@ final class AudioRecorder: @unchecked Sendable, Recording {
     private var samplesLock = os_unfair_lock_s()
     private let targetFormat: AVAudioFormat
     private var converter: AVAudioConverter?
+    private var tapCallbackCount: Int = 0
+    private var conversionErrorCount: Int = 0
 
     init() {
         targetFormat = AVAudioFormat(
@@ -39,17 +41,36 @@ final class AudioRecorder: @unchecked Sendable, Recording {
         os_unfair_lock_lock(&samplesLock)
         samples.removeAll(keepingCapacity: true)
         os_unfair_lock_unlock(&samplesLock)
+        tapCallbackCount = 0
+        conversionErrorCount = 0
 
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
-        converter = AVAudioConverter(from: inputFormat, to: targetFormat)
+        NSLog("AudioRecorder: input format sampleRate=\(inputFormat.sampleRate) channels=\(inputFormat.channelCount) commonFormat=\(inputFormat.commonFormat.rawValue)")
+
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
+            NSLog("AudioRecorder: ERROR — input format has zero sample rate or channels. Check default audio input device in System Settings → Sound → Input.")
+            throw NSError(domain: "WhisperLocal.AudioRecorder", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "No active input device (check System Settings → Sound → Input)"
+            ])
+        }
+
+        guard let conv = AVAudioConverter(from: inputFormat, to: targetFormat) else {
+            NSLog("AudioRecorder: ERROR — AVAudioConverter init failed (from \(inputFormat) to \(targetFormat))")
+            throw NSError(domain: "WhisperLocal.AudioRecorder", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Audio converter init failed"
+            ])
+        }
+        converter = conv
 
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
             self?.process(buffer: buffer)
         }
 
+        engine.prepare()
         try engine.start()
+        NSLog("AudioRecorder: engine started, isRunning=\(engine.isRunning)")
 
         DispatchQueue.main.async { [weak self] in
             self?.isRecording = true
@@ -65,6 +86,8 @@ final class AudioRecorder: @unchecked Sendable, Recording {
         let captured = samples
         os_unfair_lock_unlock(&samplesLock)
 
+        NSLog("AudioRecorder: stop — taps=\(tapCallbackCount) samples=\(captured.count) convErrors=\(conversionErrorCount)")
+
         DispatchQueue.main.async { [weak self] in
             self?.isRecording = false
             self?.level = 0
@@ -76,6 +99,10 @@ final class AudioRecorder: @unchecked Sendable, Recording {
     // MARK: - Private
 
     private func process(buffer: AVAudioPCMBuffer) {
+        tapCallbackCount += 1
+        if tapCallbackCount == 1 {
+            NSLog("AudioRecorder: first tap callback — frameLength=\(buffer.frameLength) format=\(buffer.format)")
+        }
         guard let converter else { return }
 
         let outCapacity = AVAudioFrameCount(
@@ -104,10 +131,22 @@ final class AudioRecorder: @unchecked Sendable, Recording {
             return buffer
         }
 
-        guard error == nil else { return }
+        guard error == nil else {
+            conversionErrorCount += 1
+            if conversionErrorCount == 1 {
+                NSLog("AudioRecorder: first conversion error: \(error!.localizedDescription)")
+            }
+            return
+        }
 
         let frames = Int(outBuffer.frameLength)
-        guard frames > 0, let channel = outBuffer.floatChannelData?[0] else { return }
+        guard frames > 0, let channel = outBuffer.floatChannelData?[0] else {
+            conversionErrorCount += 1
+            if conversionErrorCount == 1 {
+                NSLog("AudioRecorder: conversion produced 0 frames (input frameLength=\(buffer.frameLength))")
+            }
+            return
+        }
 
         var rms: Float = 0
         let newSamples = UnsafeBufferPointer(start: channel, count: frames)
