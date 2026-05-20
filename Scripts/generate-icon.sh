@@ -30,5 +30,9 @@ cp                "$PNG"             "$ICONSET/icon_512x512@2x.png"
 
 mkdir -p "$ROOT/Resources"
 iconutil -c icns "$ICONSET" -o "$ROOT/Resources/AppIcon.icns"
-
 echo "Wrote $ROOT/Resources/AppIcon.icns"
+
+# Also export a PNG for the GitHub README (which can't render .icns).
+mkdir -p "$ROOT/docs"
+sips -z 256 256 "$PNG" --out "$ROOT/docs/icon.png" >/dev/null
+echo "Wrote $ROOT/docs/icon.png"

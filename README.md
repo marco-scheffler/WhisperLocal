@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Resources/AppIcon.icns" width="128" height="128" alt="WhisperLocal" />
+<img src="docs/icon.png" width="128" height="128" alt="WhisperLocal" />
 
 # WhisperLocal
 
