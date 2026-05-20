@@ -19,10 +19,13 @@ struct SettingsView: View {
             Section("Post-processing") {
                 Toggle("Clean transcript with local LLM", isOn: $llmEnabled)
             }
+            Section("Permissions") {
+                PermissionsView()
+            }
         }
         .formStyle(.grouped)
         .padding(20)
-        .frame(width: 420, height: 280)
+        .frame(width: 420, height: 380)
         .onChange(of: hotkey) { _, new in
             Preferences.hotkey = new
             onHotkeyChange(new)
