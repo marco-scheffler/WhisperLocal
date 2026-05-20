@@ -13,6 +13,9 @@ mkdir -p "$APP/Contents/Resources"
 
 cp "$ROOT/.build/release/WhisperLocal" "$APP/Contents/MacOS/WhisperLocal"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+# Classic Mac OS-era marker that some Gatekeeper heuristics still look for to
+# distinguish "an .app bundle" from "a directory with a binary inside".
+printf 'APPL????' > "$APP/Contents/PkgInfo"
 if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
     cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 fi
