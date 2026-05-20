@@ -26,7 +26,7 @@ actor WhisperEngine: Transcribing {
             modelFolder: modelStore.whisperModelDirectory.path,
             verbose: false,
             logLevel: .error,
-            download: false
+            download: true
         )
         pipelineBox = WhisperKitBox(try await WhisperKit(config))
     }
