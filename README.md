@@ -1,52 +1,191 @@
 # WhisperLocal
 
-Local macOS speech-to-text. Press and hold a global hotkey, speak, release — the transcript is pasted into the focused app. Uses Apple Silicon-optimized Whisper (via WhisperKit / CoreML) for transcription and Apple's on-device language model (FoundationModels / Apple Intelligence) for grammar and filler-word cleanup. No cloud calls.
+> 🎤 **Local-first speech-to-text for macOS.** Press a hotkey, speak, and the transcript appears at your cursor — in any app, including the terminal. 100% on-device. Zero cloud calls.
+
+Powered by [WhisperKit](https://github.com/argmaxinc/argmax-oss-swift) (Apple Silicon-optimized Whisper via CoreML) and Apple's [FoundationModels](https://developer.apple.com/documentation/foundationmodels) (Apple Intelligence on-device LLM for grammar and filler cleanup).
+
+---
+
+## Features
+
+- **System-wide dictation** — works in Terminal, VS Code, Slack, Mail, Notes, browser fields, anywhere `⌘V` works
+- **Toggle or push-to-talk** — tap to start, tap again or just stay silent for 2 s to stop. Configurable.
+- **German + English** with on-the-fly auto-detection
+- **Optional on-device LLM cleanup** removes "ähm", fixes punctuation and capitalization
+- **Audio device picker** — choose mic in-app (built-in, USB, Bluetooth)
+- **Live model download progress** in a floating overlay
+- **Configurable global hotkey**, modifier-only or key+modifier combos
+- **In-app log viewer** for easy debugging — no Console.app needed
+- **Dynamic menu bar icon** that reflects the current state
+- **Launch at login** — auto-start after reboot
+- **No cloud, no telemetry, no account** — runs entirely on your Mac
 
 ## Requirements
 
-- macOS 26 (Tahoe) or later
-- Apple Silicon (Apple Intelligence required for LLM cleanup)
-- ~600 MB free disk for the Whisper model
+- macOS 15 (Sequoia) or later — macOS 26 (Tahoe) recommended for the LLM cleanup
+- Apple Silicon (M1 or later). Tested on M5 Max.
+- ~600 MB free disk for the Whisper model (downloaded on first launch)
+- Apple Intelligence enabled (System Settings → Apple Intelligence & Siri) for the LLM cleanup. Optional — the app falls back to raw transcripts if unavailable.
 
-## Build
+## Installation
 
-    swift test
-    ./Scripts/make-app-bundle.sh
-    open WhisperLocal.app
+### Quick install (recommended)
 
-## First launch
+```bash
+git clone https://github.com/<you>/WhisperLocal.git
+cd WhisperLocal
 
-Grant the following permissions when prompted:
+# One-time: create a stable code-signing cert so macOS keeps permissions
+# across rebuilds (TCC binds permissions to the signing identity).
+./Scripts/create-dev-cert.sh
 
-1. **Microphone** — for recording
-2. **Accessibility** — so the app can paste ⌘V into the focused window. Open System Settings → Privacy & Security → Accessibility and add `WhisperLocal.app`.
-3. **Input Monitoring** — for the global hotkey. System Settings → Privacy & Security → Input Monitoring → add `WhisperLocal.app`.
+# Build, sign, and copy WhisperLocal.app to /Applications
+./Scripts/install.sh
 
-The Whisper model (~600 MB) downloads automatically on first transcription. Subsequent launches reuse the cached model.
+open /Applications/WhisperLocal.app
+```
 
-## Default hotkey
+On first launch, grant the three permissions when prompted:
 
-Hold `⌥⌘` (Option + Command). Configurable via menu bar icon → Settings…
+1. **Microphone** — for capturing audio
+2. **Accessibility** — so the app can paste `⌘V` into the focused window. System Settings → Privacy & Security → Accessibility → enable `WhisperLocal`.
+3. **Input Monitoring** — for the global hotkey. System Settings → Privacy & Security → Input Monitoring → enable `WhisperLocal`.
+
+Quit and reopen WhisperLocal once after granting Accessibility & Input Monitoring so it picks up the new permissions.
+
+The Whisper model (~600 MB) downloads in the background on first launch. You can watch progress in the overlay or under Settings → Whisper model.
+
+### Run from source without installing
+
+```bash
+swift run
+```
+
+This builds and starts the app from the project directory. Useful for development.
+
+## Usage
+
+1. **Hold or tap** the hotkey (default `⌥⌘`, hold; configurable in Settings).
+2. **Speak.** The floating overlay shows the live audio level.
+3. **Stop:**
+   - **Toggle mode (default):** tap the hotkey again, or stay silent for 2 seconds — auto-stop kicks in.
+   - **Push-to-talk mode:** release the hotkey.
+4. The transcript is cleaned (if LLM is enabled) and pasted at the cursor.
+
+### Hotkeys
+
+Open Settings (menu bar icon → Settings…) → **Hotkey** → click the field → press your desired combo.
+
+Two flavors are supported:
+
+| Type | Example | When pressed/released |
+|---|---|---|
+| Modifier-only | `⌥⌘`, `⌃⌥` | Hold all modifiers down → triggers; release any → ends |
+| Key + modifier | `⌘⇧Space`, `F13` | Tap the key → triggers |
 
 ## Settings
 
-- **Hotkey** — click the field, press your desired combo
-- **Post-processing** — toggle Apple Intelligence cleanup (default on)
-- **Permissions** — status indicators with shortcuts to System Settings
+Click the menu bar icon → Settings…
+
+| Section | What it does |
+|---|---|
+| **Whisper model** | Live status of the on-device Whisper model (downloading / loading / ready) |
+| **Microphone** | Pick a specific input device or follow the system default |
+| **Language** | Auto-detect / German / English |
+| **Hotkey** | Capture a new combo + choose Push-to-talk or Toggle mode |
+| **Post-processing** | Toggle the FoundationModels LLM cleanup (default on) |
+| **Startup** | Launch at login (uses `SMAppService`) |
+| **Permissions** | Live status of Mic / Accessibility / Input Monitoring |
+| **Logs** | In-app log viewer — last 500 entries, with Copy and Clear |
+
+## Privacy
+
+- **Nothing leaves your Mac.** The Whisper model runs locally via CoreML. The optional LLM cleanup uses Apple's on-device FoundationModels. Audio is never sent to a server.
+- **No analytics, no crash reporting, no network calls** at runtime after the initial model download from HuggingFace.
+- The Whisper model is downloaded once from `argmaxinc/whisperkit-coreml` on HuggingFace and cached in `~/Library/Application Support/com.weber.WhisperLocal/Models/`.
+- No third-party SDKs.
 
 ## Architecture
 
-| Layer | Component |
-|---|---|
-| Capture | `AudioRecorder` (AVAudioEngine → 16 kHz mono float32) |
-| Hotkey | `HotKeyManager` (modifier-only push-to-talk via NSEvent global monitor) |
-| STT | `WhisperEngine` (WhisperKit, large-v3 multilingual) |
-| Cleanup | `LLMPostProcessor` (FoundationModels / Apple Intelligence, 3 s timeout) |
-| Injection | `TextInjector` (Pasteboard + CGEvent ⌘V + snapshot restore) |
-| Orchestration | `DictationController` (@MainActor state machine) |
-| UI | `OverlayWindow` (NSPanel + SwiftUI), `SettingsWindow`, `MenuBarController` |
+| Layer | Component | Responsibility |
+|---|---|---|
+| Capture | `AudioRecorder` | AVAudioEngine → 16 kHz mono float32, with selectable CoreAudio input device |
+| Hotkey | `HotKeyManager` | `soffes/HotKey` for combos, global `NSEvent.flagsChanged` monitor for modifier-only |
+| STT | `WhisperEngine` | WhisperKit large-v3 multilingual model via CoreML; downloads to Application Support |
+| Cleanup | `LLMPostProcessor` | Apple `FoundationModels` (Apple Intelligence) with 3 s timeout fallback |
+| Injection | `TextInjector` | `NSPasteboard` write → `CGEvent` ⌘V → snapshot restore (so we don't trample your clipboard) |
+| Orchestration | `DictationController` | `@MainActor` state machine: idle → recording → transcribing → (post-processing) → injecting |
+| UI | `OverlayWindow`, `SettingsWindow`, `MenuBarController` | Floating NSPanel + SwiftUI, settings window, menu bar status item |
 
 ## Development
 
-    swift build
-    swift test
+```bash
+swift build               # debug build
+swift test                # 11 unit tests
+swift run                 # launch the app from source
+./Scripts/make-app-bundle.sh   # produce a signed WhisperLocal.app
+./Scripts/install.sh           # build + install to /Applications
+./Scripts/generate-icon.sh     # regenerate the app icon
+```
+
+### Project layout
+
+```
+WhisperLocal/
+├── Package.swift
+├── Sources/WhisperLocal/
+│   ├── App.swift / AppDelegate.swift
+│   ├── DictationController.swift     # state machine
+│   ├── Audio/                        # AudioRecorder, AudioDeviceManager
+│   ├── Hotkey/                       # HotKeyManager, HotKeyBinding
+│   ├── Inference/                    # WhisperEngine, LLMPostProcessor, ModelStore
+│   ├── Injection/                    # TextInjector
+│   ├── MenuBar/                      # MenuBarController
+│   ├── Overlay/                      # OverlayWindow, OverlayView, OverlayState
+│   ├── Permissions/                  # PermissionsManager
+│   ├── Settings/                     # SettingsView, HotKeyCaptureView, LogView, …
+│   ├── LoginItem.swift               # SMAppService wrapper
+│   ├── Logging.swift                 # LogStore + Log helper
+│   └── Preferences.swift             # UserDefaults wrapper
+├── Resources/
+│   ├── Info.plist
+│   └── AppIcon.icns
+├── Scripts/
+│   ├── GenerateIcon.swift            # programmatic icon source
+│   ├── generate-icon.sh
+│   ├── create-dev-cert.sh
+│   ├── make-app-bundle.sh
+│   └── install.sh
+└── Tests/WhisperLocalTests/
+```
+
+### Re-skinning the icon
+
+Edit `Scripts/GenerateIcon.swift` (it draws via AppKit), then:
+```bash
+./Scripts/generate-icon.sh
+./Scripts/install.sh
+```
+
+## Troubleshooting
+
+| Symptom | What to check |
+|---|---|
+| "Too short — hold longer" | Hold the hotkey for at least 0.5 s. If you held longer and still see this, look at Settings → Logs for `AudioRecorder` entries — likely the wrong input device. |
+| "No speech detected" | Whisper transcribed silence. Try Settings → Language → German (instead of Auto). |
+| `transcribe failed: CancellationError()` | Old bug, fixed in 0.1.0+. Update. |
+| Text comes out in English when you spoke German | Settings → Language → German. Auto-detect can pick wrong on short utterances. |
+| Permissions reset on every rebuild | You're signing ad-hoc. Run `./Scripts/create-dev-cert.sh` once. |
+| App not launching at login | System Settings → General → Login Items & Extensions → approve `WhisperLocal`. |
+
+## Credits
+
+- [WhisperKit](https://github.com/argmaxinc/argmax-oss-swift) by Argmax for the Apple Silicon-optimized Whisper inference
+- [OpenAI Whisper](https://github.com/openai/whisper) for the underlying STT model
+- [soffes/HotKey](https://github.com/soffes/HotKey) for global hotkey registration
+- Apple's `FoundationModels` framework for the on-device LLM
+- Inspired by [whisperbar.pro](https://whisperbar.pro)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
