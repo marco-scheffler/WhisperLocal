@@ -48,10 +48,13 @@ struct SettingsView: View {
             Section("Permissions") {
                 PermissionsView()
             }
+            Section("Logs") {
+                LogView()
+            }
         }
         .formStyle(.grouped)
         .padding(20)
-        .frame(width: 460, height: 460)
+        .frame(width: 540, height: 720)
         .onChange(of: hotkey) { _, new in
             Preferences.hotkey = new
             onHotkeyChange(new)

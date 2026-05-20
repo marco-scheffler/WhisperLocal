@@ -58,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in self?.settingsWindow.show() }
         }
 
-        NSLog("WhisperLocal launched")
+        Log.info("WhisperLocal launched")
 
         Self.modelStatus.modelName = "large-v3-v20240930_626MB"
 
@@ -95,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     status.phase = .error(error.localizedDescription)
                     overlay.state.phase = .error("Model load failed: \(error.localizedDescription)")
                 }
-                NSLog("WhisperLocal: warmup error: \(error)")
+                Log.info("WhisperLocal: warmup error: \(error)")
             }
         }
     }

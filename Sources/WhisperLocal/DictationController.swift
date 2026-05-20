@@ -64,7 +64,7 @@ final class DictationController: ObservableObject {
         guard state == .recording else { return }
         let samples = recorder.stop()
         let durationSeconds = Double(samples.count) / 16_000.0
-        NSLog("DictationController: captured \(samples.count) samples (\(String(format: "%.2f", durationSeconds))s)")
+        Log.info("DictationController:captured \(samples.count) samples (\(String(format: "%.2f", durationSeconds))s)")
 
         if samples.count < 16_000 / 2 { // less than 0.5 s of audio
             await fail(message: "Too short — hold longer")
@@ -78,12 +78,12 @@ final class DictationController: ObservableObject {
         do {
             raw = try await transcriber.transcribe(samples: samples, language: nil)
         } catch {
-            NSLog("DictationController: transcribe error: \(error)")
+            Log.info("DictationController:transcribe error: \(error)")
             await fail(message: "Transcribe failed: \(error.localizedDescription)")
             return
         }
 
-        NSLog("DictationController: raw transcript=\"\(raw)\" (\(raw.count) chars)")
+        Log.info("DictationController:raw transcript=\"\(raw)\" (\(raw.count) chars)")
 
         if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             await fail(message: "No speech detected")
@@ -95,7 +95,7 @@ final class DictationController: ObservableObject {
             state = .postProcessing
             overlay.state.phase = .postProcessing
             let cleaned = (try? await post.clean(text: raw)) ?? raw
-            NSLog("DictationController: cleaned=\"\(cleaned)\"")
+            Log.info("DictationController:cleaned=\"\(cleaned)\"")
             text = cleaned
         }
 
@@ -106,7 +106,7 @@ final class DictationController: ObservableObject {
 
         state = .injecting
         overlay.state.phase = .injecting
-        NSLog("DictationController: injecting \(text.count) chars")
+        Log.info("DictationController:injecting \(text.count) chars")
         injector.inject(text)
 
         try? await Task.sleep(nanoseconds: 700_000_000)

@@ -46,10 +46,10 @@ actor WhisperEngine: Transcribing {
             .appendingPathComponent("models/argmaxinc/whisperkit-coreml/\(expectedFolderName)")
 
         if FileManager.default.fileExists(atPath: candidate.path) {
-            NSLog("WhisperEngine: reusing cached model at \(candidate.path)")
+            Log.info("WhisperEngine:reusing cached model at \(candidate.path)")
             modelFolderURL = candidate
         } else {
-            NSLog("WhisperEngine: downloading model \(modelName)")
+            Log.info("WhisperEngine:downloading model \(modelName)")
             let progressCallback = onDownloadProgress
             modelFolderURL = try await WhisperKit.download(
                 variant: modelName,
@@ -58,11 +58,11 @@ actor WhisperEngine: Transcribing {
             ) { progress in
                 progressCallback?(progress.fractionCompleted)
             }
-            NSLog("WhisperEngine: download complete at \(modelFolderURL.path)")
+            Log.info("WhisperEngine:download complete at \(modelFolderURL.path)")
         }
 
         onLoadStarted?()
-        NSLog("WhisperEngine: loading WhisperKit pipeline")
+        Log.info("WhisperEngine:loading WhisperKit pipeline")
         let config = WhisperKitConfig(
             model: modelName,
             modelFolder: modelFolderURL.path,
@@ -73,10 +73,10 @@ actor WhisperEngine: Transcribing {
         )
         do {
             pipelineBox = WhisperKitBox(try await WhisperKit(config))
-            NSLog("WhisperEngine: model ready")
+            Log.info("WhisperEngine:model ready")
             onReady?()
         } catch {
-            NSLog("WhisperEngine: model load failed: \(error)")
+            Log.info("WhisperEngine:model load failed: \(error)")
             throw error
         }
     }
@@ -89,7 +89,7 @@ actor WhisperEngine: Transcribing {
     func transcribe(samples: [Float], language: String?) async throws -> String {
         try await ensureLoaded()
         guard let box = pipelineBox else { return "" }
-        NSLog("WhisperEngine: transcribing \(samples.count) samples (\(Double(samples.count)/16000.0)s)")
+        Log.info("WhisperEngine:transcribing \(samples.count) samples (\(Double(samples.count)/16000.0)s)")
         let options = DecodingOptions(language: language)
         do {
             let results = try await box.value.transcribe(audioArray: samples, decodeOptions: options)
@@ -97,10 +97,10 @@ actor WhisperEngine: Transcribing {
                 .map(\.text)
                 .joined(separator: " ")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            NSLog("WhisperEngine: transcript = \(text)")
+            Log.info("WhisperEngine:transcript = \(text)")
             return text
         } catch {
-            NSLog("WhisperEngine: transcribe failed: \(error)")
+            Log.info("WhisperEngine:transcribe failed: \(error)")
             throw error
         }
     }
