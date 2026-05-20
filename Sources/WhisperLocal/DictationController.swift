@@ -70,7 +70,8 @@ final class DictationController: ObservableObject {
         do {
             raw = try await transcriber.transcribe(samples: samples, language: nil)
         } catch {
-            await fail(message: "Transcribe failed")
+            NSLog("DictationController: transcribe error: \(error)")
+            await fail(message: "Transcribe failed: \(error.localizedDescription)")
             return
         }
 

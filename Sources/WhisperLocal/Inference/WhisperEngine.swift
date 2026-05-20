@@ -21,24 +21,40 @@ actor WhisperEngine: Transcribing {
 
     func ensureLoaded() async throws {
         if pipelineBox != nil { return }
+        NSLog("WhisperEngine: loading model \(modelName) (downloadBase=\(modelStore.whisperModelDirectory.path))")
         let config = WhisperKitConfig(
             model: modelName,
-            modelFolder: modelStore.whisperModelDirectory.path,
-            verbose: false,
-            logLevel: .error,
+            downloadBase: modelStore.whisperModelDirectory,
+            verbose: true,
+            logLevel: .info,
+            load: true,
             download: true
         )
-        pipelineBox = WhisperKitBox(try await WhisperKit(config))
+        do {
+            pipelineBox = WhisperKitBox(try await WhisperKit(config))
+            NSLog("WhisperEngine: model loaded")
+        } catch {
+            NSLog("WhisperEngine: model load failed: \(error)")
+            throw error
+        }
     }
 
     func transcribe(samples: [Float], language: String?) async throws -> String {
         try await ensureLoaded()
         guard let box = pipelineBox else { return "" }
+        NSLog("WhisperEngine: transcribing \(samples.count) samples (\(Double(samples.count)/16000.0)s)")
         let options = DecodingOptions(language: language)
-        let results = try await box.value.transcribe(audioArray: samples, decodeOptions: options)
-        return results
-            .map(\.text)
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let results = try await box.value.transcribe(audioArray: samples, decodeOptions: options)
+            let text = results
+                .map(\.text)
+                .joined(separator: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            NSLog("WhisperEngine: transcript = \(text)")
+            return text
+        } catch {
+            NSLog("WhisperEngine: transcribe failed: \(error)")
+            throw error
+        }
     }
 }
