@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeys: HotKeyManager?
     private let recorder = AudioRecorder()
     private let overlay = OverlayWindow()
+    private let whisper = WhisperEngine(modelStore: ModelStore())
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -31,10 +32,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         mgr.onReleased = { [weak self] in
             guard let self else { return }
-            _ = self.recorder.stop()
-            self.overlay.state.phase = .injecting
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.overlay.hide()
+            let samples = self.recorder.stop()
+            self.overlay.state.phase = .transcribing
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    let text = try await self.whisper.transcribe(samples: samples, language: nil)
+                    NSLog("transcript: \(text)")
+                    self.overlay.state.phase = .injecting
+                } catch {
+                    NSLog("transcribe error: \(error)")
+                    self.overlay.state.phase = .error("Transcribe failed")
+                }
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                self.overlay.hide()
             }
         }
         hotKeys = mgr

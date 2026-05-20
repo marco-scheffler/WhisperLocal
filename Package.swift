@@ -9,13 +9,14 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/soffes/HotKey", from: "0.2.1"),
-        // mlx-swift-examples and WhisperKit will be added in Task 7
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "0.9.0"),
     ],
     targets: [
         .executableTarget(
             name: "WhisperLocal",
             dependencies: [
                 "HotKey",
+                .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ]
         ),
         .testTarget(
