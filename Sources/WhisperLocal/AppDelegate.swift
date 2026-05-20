@@ -14,14 +14,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBar = MenuBarController()
 
-        let whisper = WhisperEngine(modelStore: ModelStore())
+        let modelStore = ModelStore()
+        let whisper = WhisperEngine(modelStore: modelStore)
+        let llm = LLMPostProcessor()
+
         let c = DictationController(
             recorder: recorder,
             transcriber: whisper,
-            postProcessor: nil,         // wired in Task 11
+            postProcessor: llm,
             injector: injector,
             overlay: overlay
         )
+        c.llmEnabled = Preferences.llmEnabled
         controller = c
 
         // Forward audio level to overlay state.
@@ -30,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] lvl in self?.overlay.state.level = lvl }
             .store(in: &cancellables)
 
-        let mgr = HotKeyManager(binding: .default)
+        let mgr = HotKeyManager(binding: Preferences.hotkey)
         mgr.onPressed  = { Task { @MainActor in await c.handleHotKey(pressed: true) } }
         mgr.onReleased = { Task { @MainActor in await c.handleHotKey(pressed: false) } }
         hotKeys = mgr
