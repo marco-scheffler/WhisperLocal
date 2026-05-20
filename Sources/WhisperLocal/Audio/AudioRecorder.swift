@@ -129,16 +129,16 @@ final class AudioRecorder: @unchecked Sendable, Recording {
             frameCapacity: outCapacity
         ) else { return }
 
-        // AVAudioConverter calls the input block synchronously and at most
-        // twice per convert call. Wrapping `consumed` in a class box avoids
-        // the Swift 6 "mutation of captured var in concurrently-executing code"
-        // warning that arises because the block type is @Sendable.
+        // AVAudioConverter calls the input block synchronously. For streaming
+        // resampling we must signal `.noDataNow` (not `.endOfStream`) after the
+        // current buffer is consumed — otherwise the converter enters a "done"
+        // state and every subsequent convert() returns zero frames.
         final class Box: @unchecked Sendable { var value = false }
         let consumedBox = Box()
         var error: NSError?
         converter.convert(to: outBuffer, error: &error) { _, status in
             if consumedBox.value {
-                status.pointee = .endOfStream
+                status.pointee = .noDataNow
                 return nil
             }
             consumedBox.value = true
