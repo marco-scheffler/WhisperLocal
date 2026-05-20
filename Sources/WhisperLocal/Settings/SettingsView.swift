@@ -5,6 +5,7 @@ struct SettingsView: View {
     @State private var llmEnabled: Bool = Preferences.llmEnabled
     @State private var language: String = Preferences.language ?? ""
     @State private var recordingMode: RecordingMode = Preferences.recordingMode
+    @State private var launchAtLogin: Bool = LoginItem.isEnabled
     @ObservedObject var modelStatus: ModelStatus = AppDelegate.modelStatus
 
     var onHotkeyChange: (HotKeyBinding) -> Void
@@ -63,6 +64,12 @@ struct SettingsView: View {
             Section("Post-processing") {
                 Toggle("Clean transcript with local LLM", isOn: $llmEnabled)
             }
+            Section("Startup") {
+                Toggle("Launch at login", isOn: $launchAtLogin)
+                Text(LoginItem.statusDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Permissions") {
                 PermissionsView()
             }
@@ -87,6 +94,9 @@ struct SettingsView: View {
         .onChange(of: recordingMode) { _, new in
             Preferences.recordingMode = new
             onRecordingModeChange(new)
+        }
+        .onChange(of: launchAtLogin) { _, new in
+            LoginItem.setEnabled(new)
         }
     }
 
