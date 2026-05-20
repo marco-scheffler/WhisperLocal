@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let recorder = AudioRecorder()
     private let overlay = OverlayWindow()
     private let whisper = WhisperEngine(modelStore: ModelStore())
+    private let injector = TextInjector()
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -38,13 +39,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { return }
                 do {
                     let text = try await self.whisper.transcribe(samples: samples, language: nil)
-                    NSLog("transcript: \(text)")
+                    if !text.isEmpty {
+                        self.injector.inject(text)
+                    }
                     self.overlay.state.phase = .injecting
                 } catch {
                     NSLog("transcribe error: \(error)")
                     self.overlay.state.phase = .error("Transcribe failed")
                 }
-                try? await Task.sleep(nanoseconds: 800_000_000)
+                try? await Task.sleep(nanoseconds: 700_000_000)
                 self.overlay.hide()
             }
         }
