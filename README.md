@@ -26,7 +26,7 @@ The Whisper model (~600 MB) downloads automatically on first transcription. Subs
 
 ## Default hotkey
 
-Hold `⌃⌥` (Control + Option). Configurable via menu bar icon → Settings…
+Hold `⌥⌘` (Option + Command). Configurable via menu bar icon → Settings…
 
 ## Settings
 

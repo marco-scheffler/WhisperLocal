@@ -14,10 +14,10 @@ struct HotKeyBinding: Equatable, Codable {
         self.modifierFlagsRaw = modifierFlags.rawValue
     }
 
-    /// Default binding: modifier-only push-to-talk using ⌃⌥ (Control + Option).
+    /// Default binding: modifier-only push-to-talk using ⌥⌘ (Option + Command).
     /// `keyCode == 0` with non-empty `modifierFlags` signals modifier-only mode to
     /// `HotKeyManager` — no regular key is required, only the modifier combo.
-    static let `default` = HotKeyBinding(keyCode: 0, modifierFlags: [.control, .option])
+    static let `default` = HotKeyBinding(keyCode: 0, modifierFlags: [.option, .command])
 
     var dictionary: [String: Any] {
         ["keyCode": keyCode, "modifierFlagsRaw": modifierFlagsRaw]

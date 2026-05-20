@@ -10,7 +10,7 @@ final class HotKeyBindingTests: XCTestCase {
 
     func testDefault() {
         let def = HotKeyBinding.default
-        XCTAssertTrue(def.modifierFlags.contains(.control))
         XCTAssertTrue(def.modifierFlags.contains(.option))
+        XCTAssertTrue(def.modifierFlags.contains(.command))
     }
 }
