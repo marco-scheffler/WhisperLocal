@@ -32,7 +32,7 @@ Powered by [WhisperKit](https://github.com/argmaxinc/argmax-oss-swift) (Apple Si
 ### Quick install (recommended)
 
 ```bash
-git clone https://github.com/<you>/WhisperLocal.git
+git clone https://github.com/WEBER-marcoscheffler/WhisperLocal.git
 cd WhisperLocal
 
 # One-time: create a stable code-signing cert so macOS keeps permissions
@@ -102,7 +102,7 @@ Click the menu bar icon → Settings…
 
 - **Nothing leaves your Mac.** The Whisper model runs locally via CoreML. The optional LLM cleanup uses Apple's on-device FoundationModels. Audio is never sent to a server.
 - **No analytics, no crash reporting, no network calls** at runtime after the initial model download from HuggingFace.
-- The Whisper model is downloaded once from `argmaxinc/whisperkit-coreml` on HuggingFace and cached in `~/Library/Application Support/com.weber.WhisperLocal/Models/`.
+- The Whisper model is downloaded once from `argmaxinc/whisperkit-coreml` on HuggingFace and cached in `~/Library/Application Support/io.github.weber-marcoscheffler.WhisperLocal/Models/`.
 - No third-party SDKs.
 
 ## Architecture
