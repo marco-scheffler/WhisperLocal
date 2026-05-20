@@ -17,20 +17,45 @@ if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
     cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 fi
 
-# Prefer a stable self-signed identity so macOS TCC keeps permissions across
-# rebuilds. Detection is tricky: `find-identity -v` doesn't list self-signed
-# code-signing certs reliably, but `codesign` accepts them. Check for the
-# certificate by name instead.
-IDENTITY="WhisperLocal Dev"
-if security find-certificate -c "$IDENTITY" >/dev/null 2>&1; then
-    echo "Signing with stable identity: $IDENTITY"
-    if ! codesign --force --deep --sign "$IDENTITY" "$APP" 2>&1; then
-        echo "Codesign with '$IDENTITY' failed; falling back to ad-hoc." >&2
+ENTITLEMENTS="$ROOT/Resources/WhisperLocal.entitlements"
+
+# Signing strategy, in priority order:
+#   1. SIGN_IDENTITY env override (e.g. for release.sh) — hardened runtime
+#      + entitlements, ready for notarization.
+#   2. Developer ID Application certificate in keychain — same as 1.
+#   3. Self-signed "WhisperLocal Dev" — stable identity for local dev so TCC
+#      permissions persist across rebuilds. No hardened runtime.
+#   4. Ad-hoc — last resort. TCC will re-prompt on every rebuild.
+
+DEV_ID=$(security find-identity -v -p codesigning 2>/dev/null \
+    | grep -o '"Developer ID Application: [^"]*"' \
+    | head -1 | tr -d '"' || true)
+
+if [ -n "${SIGN_IDENTITY:-}" ]; then
+    echo "Signing for notarization with: $SIGN_IDENTITY"
+    codesign --force --deep \
+        --sign "$SIGN_IDENTITY" \
+        --options runtime \
+        --entitlements "$ENTITLEMENTS" \
+        --timestamp \
+        "$APP"
+elif [ -n "$DEV_ID" ]; then
+    echo "Signing with Developer ID (hardened runtime): $DEV_ID"
+    codesign --force --deep \
+        --sign "$DEV_ID" \
+        --options runtime \
+        --entitlements "$ENTITLEMENTS" \
+        --timestamp \
+        "$APP"
+elif security find-certificate -c "WhisperLocal Dev" >/dev/null 2>&1; then
+    echo "Signing with self-signed dev identity: WhisperLocal Dev"
+    if ! codesign --force --deep --sign "WhisperLocal Dev" "$APP" 2>&1; then
+        echo "Codesign failed; falling back to ad-hoc." >&2
         codesign --force --deep --sign - "$APP"
     fi
 else
-    echo "Stable identity '$IDENTITY' not found; using ad-hoc signing."
-    echo "Hint: run ./Scripts/create-dev-cert.sh to make TCC permissions stick."
+    echo "No signing identity found; using ad-hoc."
+    echo "Hint: run ./Scripts/create-dev-cert.sh for stable TCC permissions."
     codesign --force --deep --sign - "$APP"
 fi
 

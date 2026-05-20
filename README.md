@@ -178,6 +178,48 @@ Edit `Scripts/GenerateIcon.swift` (it draws via AppKit), then:
 | Permissions reset on every rebuild | You're signing ad-hoc. Run `./Scripts/create-dev-cert.sh` once. |
 | App not launching at login | System Settings → General → Login Items & Extensions → approve `WhisperLocal`. |
 
+## Notarized releases (maintainers only)
+
+For public releases the app is signed with a **Developer ID Application** certificate and notarized by Apple so Gatekeeper opens it without warnings.
+
+### One-time setup
+
+1. Apple Developer Program membership ($99/year). Sign up at <https://developer.apple.com/programs/>.
+2. Download a **Developer ID Application** certificate from <https://developer.apple.com/account/resources/certificates> and double-click the `.cer` to install into your login keychain.
+3. Create an **app-specific password** at <https://account.apple.com/account/manage> → Sign-In & Security → App-Specific Passwords. Name it `whisperlocal-notarize`. Save the 16-character password.
+4. Look up your Team ID at <https://developer.apple.com/account> → Membership (10-character alphanumeric).
+5. Store credentials so `notarytool` can run unattended:
+   ```bash
+   xcrun notarytool store-credentials whisperlocal-notarize \
+       --apple-id "you@example.com" \
+       --team-id  "ABCDE12345" \
+       --password "abcd-efgh-ijkl-mnop"
+   ```
+
+### Cutting a notarized release
+
+```bash
+./Scripts/release.sh v0.1.1
+```
+
+This does the full pipeline:
+1. Bumps `CFBundleShortVersionString` to `0.1.1` in `Info.plist`
+2. Builds with hardened runtime + Developer ID signature + entitlements
+3. Uploads to Apple's notarization service and waits for the verdict (typically 1–5 minutes)
+4. Staples the notarization ticket onto the app bundle
+5. Tags `v0.1.1`, pushes the tag, creates a GitHub release with the notarized zip attached
+
+### Daily development still uses `WhisperLocal Dev`
+
+`make-app-bundle.sh` picks the strongest signing identity it finds:
+
+1. `$SIGN_IDENTITY` env var if set (used by `release.sh`)
+2. `Developer ID Application: ...` certificate in keychain
+3. Self-signed `WhisperLocal Dev` (from `create-dev-cert.sh`) — for local dev
+4. Ad-hoc
+
+So you can keep using `./Scripts/install.sh` for dev iterations without affecting the release path.
+
 ## Credits
 
 - [WhisperKit](https://github.com/argmaxinc/argmax-oss-swift) by Argmax for the Apple Silicon-optimized Whisper inference
