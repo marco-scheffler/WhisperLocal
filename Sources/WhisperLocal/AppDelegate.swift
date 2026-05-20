@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             overlay: overlay
         )
         c.llmEnabled = Preferences.llmEnabled
+        recorder.inputDeviceUID = Preferences.inputDeviceUID
         controller = c
 
         // Forward audio level to overlay state.
@@ -47,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         settingsWindow.onHotkeyChange = { [weak self] new in self?.hotKeys?.update(binding: new) }
         settingsWindow.onLLMChange = { [weak self] new in self?.controller?.llmEnabled = new }
+        settingsWindow.onInputDeviceChange = { [weak self] uid in self?.recorder.inputDeviceUID = uid }
 
         NotificationCenter.default.addObserver(
             forName: .openSettings,

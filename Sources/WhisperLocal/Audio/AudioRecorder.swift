@@ -37,6 +37,11 @@ final class AudioRecorder: @unchecked Sendable, Recording {
         )!
     }
 
+    /// Set the input device UID to use. Pass `nil` to follow the system default.
+    /// Must be set before `start()` is called; changing while running has no effect
+    /// until the next `start()`.
+    var inputDeviceUID: String?
+
     func start() throws {
         os_unfair_lock_lock(&samplesLock)
         samples.removeAll(keepingCapacity: true)
@@ -45,6 +50,16 @@ final class AudioRecorder: @unchecked Sendable, Recording {
         conversionErrorCount = 0
 
         let input = engine.inputNode
+
+        if let uid = inputDeviceUID {
+            do {
+                try AudioDeviceManager.setInput(engine: engine, deviceUID: uid)
+                NSLog("AudioRecorder: routed input to device uid=\(uid)")
+            } catch {
+                NSLog("AudioRecorder: failed to route to uid=\(uid) (\(error)) — falling back to default")
+            }
+        }
+
         let inputFormat = input.outputFormat(forBus: 0)
         NSLog("AudioRecorder: input format sampleRate=\(inputFormat.sampleRate) channels=\(inputFormat.channelCount) commonFormat=\(inputFormat.commonFormat.rawValue)")
 

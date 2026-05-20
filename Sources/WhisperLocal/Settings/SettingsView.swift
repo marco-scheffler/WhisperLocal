@@ -7,6 +7,7 @@ struct SettingsView: View {
 
     var onHotkeyChange: (HotKeyBinding) -> Void
     var onLLMChange: (Bool) -> Void
+    var onInputDeviceChange: (String?) -> Void
 
     var body: some View {
         Form {
@@ -26,6 +27,12 @@ struct SettingsView: View {
                             .progressViewStyle(.linear)
                             .frame(width: 120)
                     }
+                }
+            }
+            Section("Microphone") {
+                AudioDevicePicker(initial: Preferences.inputDeviceUID) { uid in
+                    Preferences.inputDeviceUID = uid
+                    onInputDeviceChange(uid)
                 }
             }
             Section("Hotkey") {

@@ -7,6 +7,7 @@ final class SettingsWindow {
 
     var onHotkeyChange: (HotKeyBinding) -> Void = { _ in }
     var onLLMChange: (Bool) -> Void = { _ in }
+    var onInputDeviceChange: (String?) -> Void = { _ in }
 
     func show() {
         if let window {
@@ -16,7 +17,8 @@ final class SettingsWindow {
         }
         let view = SettingsView(
             onHotkeyChange: { [weak self] in self?.onHotkeyChange($0) },
-            onLLMChange: { [weak self] in self?.onLLMChange($0) }
+            onLLMChange: { [weak self] in self?.onLLMChange($0) },
+            onInputDeviceChange: { [weak self] in self?.onInputDeviceChange($0) }
         )
         let hosting = NSHostingController(rootView: view)
         let w = NSWindow(contentViewController: hosting)
