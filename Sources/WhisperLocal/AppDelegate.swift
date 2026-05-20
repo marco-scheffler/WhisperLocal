@@ -42,6 +42,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] lvl in self?.overlay.state.level = lvl }
             .store(in: &cancellables)
 
+        // Reflect dictation state in the menu bar icon.
+        c.$state
+            .receive(on: RunLoop.main)
+            .sink { [weak self] state in
+                let iconState: MenuBarController.IconState = {
+                    switch state {
+                    case .idle:                       return .idle
+                    case .recording:                  return .recording
+                    case .transcribing, .postProcessing, .injecting: return .working
+                    }
+                }()
+                self?.menuBar?.apply(state: iconState)
+            }
+            .store(in: &cancellables)
+
+        // Reflect model download state in the menu bar icon while idle.
+        Self.modelStatus.$phase
+            .receive(on: RunLoop.main)
+            .sink { [weak self] phase in
+                guard let self else { return }
+                if case .downloading = phase {
+                    self.menuBar?.apply(state: .downloading)
+                } else if self.controller?.state == .idle {
+                    self.menuBar?.apply(state: .idle)
+                }
+            }
+            .store(in: &cancellables)
+
         let mgr = HotKeyManager(binding: Preferences.hotkey)
         mgr.onPressed  = { Task { @MainActor in await c.handleHotKey(pressed: true) } }
         mgr.onReleased = { Task { @MainActor in await c.handleHotKey(pressed: false) } }

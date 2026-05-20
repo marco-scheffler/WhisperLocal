@@ -13,6 +13,9 @@ mkdir -p "$APP/Contents/Resources"
 
 cp "$ROOT/.build/release/WhisperLocal" "$APP/Contents/MacOS/WhisperLocal"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
+    cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+fi
 
 # Prefer a stable self-signed identity so macOS TCC keeps permissions across
 # rebuilds. Detection is tricky: `find-identity -v` doesn't list self-signed
