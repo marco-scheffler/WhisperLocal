@@ -12,8 +12,12 @@ import os.lock
 /// - `level` and `isRecording` are `@Published`; writes are dispatched to the
 ///   main thread via `DispatchQueue.main.async` so subscribers on the main
 ///   actor see consistent values.
-final class AudioRecorder: @unchecked Sendable {
+final class AudioRecorder: @unchecked Sendable, Recording {
     @Published private(set) var level: Float = 0
+
+    var levelPublisher: AnyPublisher<Float, Never> {
+        $level.eraseToAnyPublisher()
+    }
     @Published private(set) var isRecording: Bool = false
 
     private let engine = AVAudioEngine()
