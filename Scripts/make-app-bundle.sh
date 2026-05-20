@@ -15,16 +15,19 @@ cp "$ROOT/.build/release/WhisperLocal" "$APP/Contents/MacOS/WhisperLocal"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 
 # Prefer a stable self-signed identity so macOS TCC keeps permissions across
-# rebuilds. If "WhisperLocal Dev" is missing, fall back to ad-hoc (TCC will
-# re-prompt on every rebuild).
+# rebuilds. Detection is tricky: `find-identity -v` doesn't list self-signed
+# code-signing certs reliably, but `codesign` accepts them. Check for the
+# certificate by name instead.
 IDENTITY="WhisperLocal Dev"
-if security find-identity -v -p codesigning | grep -q "$IDENTITY"; then
+if security find-certificate -c "$IDENTITY" >/dev/null 2>&1; then
     echo "Signing with stable identity: $IDENTITY"
-    codesign --force --deep --sign "$IDENTITY" "$APP"
+    if ! codesign --force --deep --sign "$IDENTITY" "$APP" 2>&1; then
+        echo "Codesign with '$IDENTITY' failed; falling back to ad-hoc." >&2
+        codesign --force --deep --sign - "$APP"
+    fi
 else
     echo "Stable identity '$IDENTITY' not found; using ad-hoc signing."
-    echo "Hint: create a Code-Signing self-signed cert in Keychain Access named '$IDENTITY'"
-    echo "      to make macOS keep permissions across rebuilds."
+    echo "Hint: run ./Scripts/create-dev-cert.sh to make TCC permissions stick."
     codesign --force --deep --sign - "$APP"
 fi
 

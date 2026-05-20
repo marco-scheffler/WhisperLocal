@@ -34,18 +34,28 @@ extendedKeyUsage = critical, codeSigning
 basicConstraints = critical, CA:FALSE
 EOF
 
-echo "Generating self-signed code-signing certificate..."
-openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
-    -keyout "$TMP/key.pem" -out "$TMP/cert.pem" \
-    -config "$TMP/openssl.cnf"
+# Use macOS LibreSSL (/usr/bin/openssl), not Homebrew's. macOS `security
+# import` reads LibreSSL-produced PKCS12 cleanly; Homebrew openssl 3.x
+# produces PKCS12 files with MAC encodings the security tool rejects.
+OPENSSL=/usr/bin/openssl
+if [ ! -x "$OPENSSL" ]; then
+    echo "Need /usr/bin/openssl (LibreSSL). Falling back to PATH openssl." >&2
+    OPENSSL=$(command -v openssl)
+fi
 
-openssl pkcs12 -export -legacy \
+echo "Generating self-signed code-signing certificate (using $OPENSSL)..."
+"$OPENSSL" req -x509 -newkey rsa:2048 -days 3650 -nodes \
+    -keyout "$TMP/key.pem" -out "$TMP/cert.pem" \
+    -config "$TMP/openssl.cnf" 2>&1 | tail -2
+
+P12PASS="wl-dev-cert"
+"$OPENSSL" pkcs12 -export \
     -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
     -name "$NAME" -out "$TMP/cert.p12" \
-    -passout pass:
+    -passout pass:"$P12PASS"
 
 echo "Importing into login keychain..."
-security import "$TMP/cert.p12" -k "$KEYCHAIN" -T /usr/bin/codesign -A -P ""
+security import "$TMP/cert.p12" -k "$KEYCHAIN" -T /usr/bin/codesign -A -P "$P12PASS"
 
 # Allow codesign and SecurityAgent to use the key without prompting.
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN" >/dev/null 2>&1 || true
