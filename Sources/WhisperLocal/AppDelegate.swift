@@ -3,6 +3,8 @@ import Combine
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    static let modelStatus = ModelStatus()
+
     private let recorder = AudioRecorder()
     private let injector = TextInjector()
     private let overlay = OverlayWindow()
@@ -56,24 +58,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSLog("WhisperLocal launched")
 
+        Self.modelStatus.modelName = "large-v3-v20240930_626MB"
+
         // Kick off model warmup so the first transcription does not stall on download.
         Task { [weak self] in
             guard let self else { return }
             let overlay = self.overlay
+            let status = Self.modelStatus
             await whisper.setProgressHandlers(
                 onDownloadProgress: { progress in
                     Task { @MainActor in
+                        status.phase = .downloading(progress: progress)
                         overlay.state.phase = .downloadingModel(progress: progress)
                         overlay.show()
                     }
                 },
                 onLoadStarted: {
                     Task { @MainActor in
+                        status.phase = .loading
                         overlay.state.phase = .loadingModel
                     }
                 },
                 onReady: {
                     Task { @MainActor in
+                        status.phase = .ready
                         overlay.hide()
                     }
                 }
@@ -82,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try await whisper.warmup()
             } catch {
                 await MainActor.run {
+                    status.phase = .error(error.localizedDescription)
                     overlay.state.phase = .error("Model load failed: \(error.localizedDescription)")
                 }
                 NSLog("WhisperLocal: warmup error: \(error)")

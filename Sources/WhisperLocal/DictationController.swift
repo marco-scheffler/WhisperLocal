@@ -63,6 +63,14 @@ final class DictationController: ObservableObject {
     private func stopAndProcess() async {
         guard state == .recording else { return }
         let samples = recorder.stop()
+        let durationSeconds = Double(samples.count) / 16_000.0
+        NSLog("DictationController: captured \(samples.count) samples (\(String(format: "%.2f", durationSeconds))s)")
+
+        if samples.count < 16_000 / 2 { // less than 0.5 s of audio
+            await fail(message: "Too short — hold longer")
+            return
+        }
+
         state = .transcribing
         overlay.state.phase = .transcribing
 
@@ -75,23 +83,33 @@ final class DictationController: ObservableObject {
             return
         }
 
+        NSLog("DictationController: raw transcript=\"\(raw)\" (\(raw.count) chars)")
+
+        if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            await fail(message: "No speech detected")
+            return
+        }
+
         var text = raw
         if llmEnabled, let post = postProcessor {
             state = .postProcessing
             overlay.state.phase = .postProcessing
-            text = (try? await post.clean(text: raw)) ?? raw
+            let cleaned = (try? await post.clean(text: raw)) ?? raw
+            NSLog("DictationController: cleaned=\"\(cleaned)\"")
+            text = cleaned
         }
 
-        guard !text.isEmpty else {
-            await reset()
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            await fail(message: "Empty after cleanup")
             return
         }
 
         state = .injecting
         overlay.state.phase = .injecting
+        NSLog("DictationController: injecting \(text.count) chars")
         injector.inject(text)
 
-        try? await Task.sleep(nanoseconds: 600_000_000)
+        try? await Task.sleep(nanoseconds: 700_000_000)
         await reset()
     }
 
