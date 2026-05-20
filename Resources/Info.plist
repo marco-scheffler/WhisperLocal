@@ -2,21 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>CFBundleIdentifier</key>
-    <string>io.github.weber-marcoscheffler.WhisperLocal</string>
-    <key>CFBundleName</key>
-    <string>WhisperLocal</string>
-    <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>LSMinimumSystemVersion</key>
-    <string>15.0</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>WhisperLocal needs the microphone to transcribe your speech locally.</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.weber-marcoscheffler.WhisperLocal</string>
+	<key>CFBundleName</key>
+	<string>WhisperLocal</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.1</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>WhisperLocal needs the microphone to transcribe your speech locally.</string>
 </dict>
 </plist>

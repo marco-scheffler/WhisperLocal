@@ -28,8 +28,13 @@ VERSION_NUMBER="${VERSION#v}"
 echo "==> Building and signing"
 ./Scripts/make-app-bundle.sh
 
-# Verify Developer ID signing actually happened.
-if ! codesign -dvv WhisperLocal.app 2>&1 | grep -q "Developer ID Application"; then
+# Verify Developer ID signing actually happened. Capture into a variable first
+# so `set -o pipefail` doesn't misread a SIGPIPE from grep -q closing stdin as
+# a codesign failure.
+SIG_OUTPUT=$(codesign -dvv WhisperLocal.app 2>&1)
+if ! echo "$SIG_OUTPUT" | grep -q "Developer ID Application"; then
+    echo "$SIG_OUTPUT" >&2
+    echo "" >&2
     echo "ERROR: app was not signed with a Developer ID Application certificate." >&2
     echo "       Install one and re-run." >&2
     exit 2
