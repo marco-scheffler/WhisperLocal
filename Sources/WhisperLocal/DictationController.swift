@@ -123,17 +123,26 @@ final class DictationController: ObservableObject {
                 if self.state != .recording { return }
                 if recordingFor > maxDuration {
                     Log.info("DictationController:max duration reached (\(maxDuration)s)")
-                    await self.stopAndProcess()
+                    self.triggerStopFromMonitor()
                     return
                 }
                 // Require at least 1 s of recording before silence can trigger,
                 // so a brief lead-in pause does not abort the take.
                 if recordingFor > 1.0 && silenceFor >= silenceTimeout {
                     Log.info("DictationController:silence \(String(format: "%.2f", silenceFor))s — auto-stop")
-                    await self.stopAndProcess()
+                    self.triggerStopFromMonitor()
                     return
                 }
             }
+        }
+    }
+
+    /// Hop the stop-and-process call into a fresh Task so the silenceMonitor
+    /// task can be cancelled by stopSilenceMonitor() without that cancellation
+    /// propagating into the awaited transcribe call.
+    private func triggerStopFromMonitor() {
+        Task { @MainActor [weak self] in
+            await self?.stopAndProcess()
         }
     }
 
