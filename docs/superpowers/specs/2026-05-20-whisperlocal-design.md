@@ -6,7 +6,7 @@
 
 ## 1. Goal
 
-A local, offline speech-to-text utility for macOS, modeled after [whisperbar.pro](https://whisperbar.pro).
+A local, offline speech-to-text utility for macOS.
 The user presses a global hotkey, speaks, releases the hotkey, and the transcript is inserted into the
 currently focused application (any app, including the terminal). Optional local LLM cleanup runs before
 insertion. No cloud, no network at runtime after model download.

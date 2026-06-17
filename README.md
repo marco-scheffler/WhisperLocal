@@ -19,7 +19,7 @@ Local-first speech-to-text for macOS. **No cloud. No account. No telemetry.**
 
 ## Why WhisperLocal?
 
-System dictation on macOS sends your voice to Apple's servers. Whisperbar.pro is closed-source and paid. Most local STT tools require a terminal and Python skills.
+System dictation on macOS sends your voice to Apple's servers. Most local STT tools require a terminal and Python skills.
 
 WhisperLocal is the alternative: **a tiny menu bar app, fully offline, that just works.** Hold a hotkey or tap it, speak, and your words land at the cursor — in Terminal, VS Code, Slack, Notes, the address bar of your browser, anywhere.
 
@@ -89,7 +89,5 @@ Every setting — hotkey, language, microphone, post-processing, autostart — l
 <div align="center">
 
 Built with [WhisperKit](https://github.com/argmaxinc/argmax-oss-swift), [OpenAI Whisper](https://github.com/openai/whisper), Apple FoundationModels, and Swift 6.
-
-Inspired by [whisperbar.pro](https://whisperbar.pro).
 
 </div>
