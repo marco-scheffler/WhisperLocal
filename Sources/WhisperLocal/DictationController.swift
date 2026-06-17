@@ -156,9 +156,13 @@ final class DictationController: ObservableObject {
     private func stopAndProcess() async {
         guard state == .recording else { return }
         stopSilenceMonitor()
-        let samples = recorder.stop()
+        let capturedSamples = recorder.stop()
+
+        // Trim trailing silence (captured by the auto-stop) before transcription
+        // so Whisper doesn't hallucinate "outro" phrases over the silence.
+        let samples = AudioTrimming.trimTrailingSilence(capturedSamples)
         let durationSeconds = Double(samples.count) / 16_000.0
-        Log.info("DictationController:captured \(samples.count) samples (\(String(format: "%.2f", durationSeconds))s)")
+        Log.info("DictationController:captured \(capturedSamples.count) samples, trimmed to \(samples.count) (\(String(format: "%.2f", durationSeconds))s)")
 
         if samples.count < 16_000 / 2 { // less than 0.5 s of audio
             await fail(message: "Too short — hold longer")
@@ -168,16 +172,19 @@ final class DictationController: ObservableObject {
         state = .transcribing
         overlay.state.phase = .transcribing
 
-        let raw: String
+        let transcript: String
         do {
-            raw = try await transcriber.transcribe(samples: samples, language: Preferences.language)
+            transcript = try await transcriber.transcribe(samples: samples, language: Preferences.language)
         } catch {
             Log.info("DictationController:transcribe error: \(error)")
             await fail(message: "Transcribe failed: \(error.localizedDescription)")
             return
         }
 
-        Log.info("DictationController:raw transcript=\"\(raw)\" (\(raw.count) chars)")
+        // Strip known Whisper hallucinations (subtitle credits, trailing "Vielen
+        // Dank") as a safety net in case any slipped past the silence trim.
+        let raw = HallucinationFilter.strip(transcript)
+        Log.info("DictationController:transcript=\"\(transcript)\" filtered=\"\(raw)\"")
 
         if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             await fail(message: "No speech detected")
