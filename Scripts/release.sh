@@ -79,4 +79,4 @@ gh release create "$VERSION" "$DIST_ZIP" \
     --notes-file "$NOTES_FILE"
 
 rm -f "$NOTES_FILE"
-echo "Done. https://github.com/WEBER-marcoscheffler/WhisperLocal/releases/tag/${VERSION}"
+echo "Done. https://github.com/marco-scheffler/WhisperLocal/releases/tag/${VERSION}"

@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform: macOS 15+](https://img.shields.io/badge/Platform-macOS%2015%2B-blue.svg)](#requirements)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-required-black.svg)](#requirements)
-[![Latest Release](https://img.shields.io/github/v/release/WEBER-marcoscheffler/WhisperLocal)](https://github.com/WEBER-marcoscheffler/WhisperLocal/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/marco-scheffler/WhisperLocal)](https://github.com/marco-scheffler/WhisperLocal/releases/latest)
 
 Local-first speech-to-text for macOS. **No cloud. No account. No telemetry.**
 
@@ -37,7 +37,7 @@ WhisperLocal is the alternative: **a tiny menu bar app, fully offline, that just
 
 ### Option A — Download (recommended)
 
-1. Grab the latest **WhisperLocal-x.y.z.zip** from [Releases](https://github.com/WEBER-marcoscheffler/WhisperLocal/releases/latest).
+1. Grab the latest **WhisperLocal-x.y.z.zip** from [Releases](https://github.com/marco-scheffler/WhisperLocal/releases/latest).
 2. Unzip and drag `WhisperLocal.app` into `/Applications`.
 3. Open it. Grant **Microphone**, **Accessibility**, and **Input Monitoring** when prompted. Relaunch once after granting.
 
@@ -46,7 +46,7 @@ The release is signed with a Developer ID certificate and notarized by Apple, so
 ### Option B — Build from source
 
 ```bash
-git clone https://github.com/WEBER-marcoscheffler/WhisperLocal.git
+git clone https://github.com/marco-scheffler/WhisperLocal.git
 cd WhisperLocal
 ./Scripts/create-dev-cert.sh    # one-time
 ./Scripts/install.sh
@@ -81,7 +81,7 @@ Every setting — hotkey, language, microphone, post-processing, autostart — l
 ## More
 
 - 📖 **[Developer & maintainer docs](docs/DEVELOPMENT.md)** — architecture, all settings, troubleshooting, release process
-- 🐛 **[Issues](https://github.com/WEBER-marcoscheffler/WhisperLocal/issues)** — bug reports & ideas welcome
+- 🐛 **[Issues](https://github.com/marco-scheffler/WhisperLocal/issues)** — bug reports & ideas welcome
 - 📄 **[License](LICENSE)** — MIT
 
 ---

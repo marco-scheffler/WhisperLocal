@@ -27,7 +27,7 @@ This is the deep-dive doc for anyone building, modifying, or releasing WhisperLo
 ## Build from source
 
 ```bash
-git clone https://github.com/WEBER-marcoscheffler/WhisperLocal.git
+git clone https://github.com/marco-scheffler/WhisperLocal.git
 cd WhisperLocal
 
 # One-time: stable self-signed code-signing cert so macOS TCC permissions
@@ -58,7 +58,7 @@ When you first open WhisperLocal you'll be asked for three permissions. Grant al
 | **Accessibility** | System Settings → Privacy & Security → Accessibility | Post a synthetic ⌘V to the focused window |
 | **Input Monitoring** | System Settings → Privacy & Security → Input Monitoring | Listen for the global hotkey |
 
-The first transcription takes ~2–5 minutes because the Whisper model (~600 MB) downloads from HuggingFace into `~/Library/Application Support/io.github.weber-marcoscheffler.WhisperLocal/Models/`. The progress is visible in the floating overlay and under Settings → Whisper model. Every subsequent transcription is sub-second.
+The first transcription takes ~2–5 minutes because the Whisper model (~600 MB) downloads from HuggingFace into `~/Library/Application Support/io.github.marco-scheffler.WhisperLocal/Models/`. The progress is visible in the floating overlay and under Settings → Whisper model. Every subsequent transcription is sub-second.
 
 ## Usage modes
 
@@ -87,7 +87,7 @@ Click the menu bar icon → **Settings…**
 
 - **Nothing leaves your Mac at runtime.** Whisper runs locally via CoreML. The optional LLM cleanup uses Apple's on-device FoundationModels which run in a sandboxed XPC process. Audio is never transmitted.
 - **No analytics, no crash reporting, no third-party SDKs.** The only network activity at runtime is zero.
-- **First-launch download:** the Whisper model (~600 MB) is fetched from `argmaxinc/whisperkit-coreml` on HuggingFace and cached in `~/Library/Application Support/io.github.weber-marcoscheffler.WhisperLocal/Models/`. After that there is no network activity at all.
+- **First-launch download:** the Whisper model (~600 MB) is fetched from `argmaxinc/whisperkit-coreml` on HuggingFace and cached in `~/Library/Application Support/io.github.marco-scheffler.WhisperLocal/Models/`. After that there is no network activity at all.
 - **Local LLM model:** none. FoundationModels is a system framework — its weights ship with macOS and are shared across apps.
 - **Pasteboard:** when injecting text we briefly write to the system clipboard, post ⌘V, then restore the previous clipboard contents after 600 ms. We do not read your existing clipboard.
 
@@ -200,7 +200,7 @@ WhisperLocal/
 | `transcribe failed: CancellationError()` | Fixed in `573ef0b` — silence-monitor self-cancellation. If you're seeing this on master, file an issue. |
 | Permissions reset on every rebuild | You're signing ad-hoc. Run `./Scripts/create-dev-cert.sh` once and rebuild. |
 | App doesn't launch at login | System Settings → General → Login Items & Extensions → approve `WhisperLocal`. |
-| Gatekeeper blocks "Unidentified developer" | You downloaded a self-built `.app` rather than the notarized release zip. Right-click → Open → Open in the dialog. Or download from [Releases](https://github.com/WEBER-marcoscheffler/WhisperLocal/releases/latest). |
+| Gatekeeper blocks "Unidentified developer" | You downloaded a self-built `.app` rather than the notarized release zip. Right-click → Open → Open in the dialog. Or download from [Releases](https://github.com/marco-scheffler/WhisperLocal/releases/latest). |
 | spctl says "rejected (the code is valid but does not seem to be an app)" | Means `Info.plist` is missing `CFBundlePackageType=APPL` and/or `CFBundleExecutable`. Fixed since v0.1.1. |
 
 ## Notarized releases (maintainers)

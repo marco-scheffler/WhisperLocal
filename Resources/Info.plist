@@ -9,7 +9,7 @@
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>io.github.weber-marcoscheffler.WhisperLocal</string>
+	<string>io.github.marco-scheffler.WhisperLocal</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
