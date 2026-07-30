@@ -216,7 +216,11 @@ final class DictationController: ObservableObject {
 
     private func fail(message: String) async {
         stopSilenceMonitor()
+        Log.info("DictationController:fail — \(message)")
         overlay.state.phase = .error(message)
+        // When recording never started the overlay was never shown, so setting
+        // the phase alone would leave the failure invisible.
+        overlay.show()
         try? await Task.sleep(nanoseconds: 1_500_000_000)
         await reset()
     }
