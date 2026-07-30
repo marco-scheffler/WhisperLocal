@@ -9,7 +9,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/soffes/HotKey", from: "0.2.1"),
-        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "0.9.0"),
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "1.0.0"),
     ],
     targets: [
         // Objective-C shim so Swift can catch the NSExceptions AVFAudio raises
