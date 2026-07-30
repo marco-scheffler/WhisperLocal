@@ -23,6 +23,10 @@ import os.lock
 /// `kAudioUnitErr_FormatNotSupported` (-10868). So: always tap with
 /// `inputFormat(forBus:)`, and rebuild the engine per session so no graph state
 /// survives a device change.
+///
+/// A device change *during* a take stops the engine and drops its taps. The
+/// recorder listens for `AVAudioEngineConfigurationChange` and re-arms in place,
+/// keeping the samples captured so far.
 final class AudioRecorder: @unchecked Sendable, Recording {
     @Published private(set) var level: Float = 0
 
@@ -40,6 +44,14 @@ final class AudioRecorder: @unchecked Sendable, Recording {
     private var converter: AVAudioConverter?
     private var tapCallbackCount: Int = 0
     private var conversionErrorCount: Int = 0
+    private var configChangeObserver: NSObjectProtocol?
+    /// Format the currently installed tap was armed with, used to ignore
+    /// configuration-change notifications that do not actually change anything.
+    private var armedFormat: AVAudioFormat?
+    /// Set synchronously by `start()` / `stop()`. `isRecording` is published
+    /// asynchronously and can still be `false` when the first configuration
+    /// change arrives.
+    private var sessionActive = false
 
     init() {
         targetFormat = AVAudioFormat(
@@ -62,6 +74,12 @@ final class AudioRecorder: @unchecked Sendable, Recording {
         tapCallbackCount = 0
         conversionErrorCount = 0
         converter = nil
+
+        // The observer is bound to the engine instance replaced below.
+        if let observer = configChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            configChangeObserver = nil
+        }
 
         // Discard any graph state left over from the previous session — it may
         // reference a device or format that is no longer current.
@@ -103,6 +121,7 @@ final class AudioRecorder: @unchecked Sendable, Recording {
                 }
                 engine.prepare()
             }
+            armedFormat = inputFormat
         } catch {
             Log.info("AudioRecorder:ERROR — installTap raised: \(error.localizedDescription)")
             throw NSError(domain: "WhisperLocal.AudioRecorder", code: 3, userInfo: [
@@ -119,15 +138,79 @@ final class AudioRecorder: @unchecked Sendable, Recording {
         }
         Log.info("AudioRecorder:engine started, isRunning=\(engine.isRunning)")
 
+        sessionActive = true
+        configChangeObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleConfigurationChange()
+        }
+
         DispatchQueue.main.async { [weak self] in
             self?.isRecording = true
         }
     }
 
+    /// AVAudioEngine stops itself and drops its taps whenever the I/O
+    /// configuration changes — plugging in a headset, a device disappearing, a
+    /// sample-rate switch. Without re-arming, the rest of the take is silently
+    /// lost. Samples captured so far are kept, so the recording continues
+    /// across the change instead of starting over.
+    private func handleConfigurationChange() {
+        guard sessionActive else { return }
+
+        let input = engine.inputNode
+
+        // The preferred device may have just come back (or gone away); either
+        // way this re-establishes the routing the user asked for.
+        if let uid = inputDeviceUID {
+            try? AudioDeviceManager.setInput(engine: engine, deviceUID: uid)
+        }
+
+        let newFormat = input.inputFormat(forBus: 0)
+
+        // Setting the input device in `start()` posts this notification
+        // asynchronously, so the first one usually arrives right after the take
+        // begins and changes nothing. Re-arming then would drop audio for no
+        // reason.
+        if engine.isRunning, let armed = armedFormat, armed == newFormat {
+            return
+        }
+
+        Log.info("AudioRecorder:configuration change — input now \(newFormat.sampleRate) Hz / \(newFormat.channelCount) ch")
+
+        guard newFormat.sampleRate > 0, newFormat.channelCount > 0 else {
+            Log.info("AudioRecorder:configuration change left no usable input — take ends on the silence timeout")
+            return
+        }
+
+        do {
+            try ObjCException.catching {
+                input.removeTap(onBus: 0)
+                input.installTap(onBus: 0, bufferSize: 1024, format: newFormat) { [weak self] buffer, _ in
+                    self?.process(buffer: buffer)
+                }
+                engine.prepare()
+            }
+            try engine.start()
+            armedFormat = newFormat
+            Log.info("AudioRecorder:re-armed after configuration change, isRunning=\(engine.isRunning)")
+        } catch {
+            Log.info("AudioRecorder:failed to re-arm after configuration change: \(error.localizedDescription)")
+        }
+    }
+
     /// Stops recording and returns a copy of all captured samples.
     func stop() -> [Float] {
+        sessionActive = false
+        if let observer = configChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            configChangeObserver = nil
+        }
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
+        armedFormat = nil
 
         os_unfair_lock_lock(&samplesLock)
         let captured = samples
