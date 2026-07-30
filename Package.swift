@@ -12,10 +12,14 @@ let package = Package(
         .package(url: "https://github.com/argmaxinc/argmax-oss-swift.git", from: "0.9.0"),
     ],
     targets: [
+        // Objective-C shim so Swift can catch the NSExceptions AVFAudio raises
+        // on fatal misconfiguration instead of letting them kill the process.
+        .target(name: "ObjCExceptionCatcher"),
         .executableTarget(
             name: "WhisperLocal",
             dependencies: [
                 "HotKey",
+                "ObjCExceptionCatcher",
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ]
         ),

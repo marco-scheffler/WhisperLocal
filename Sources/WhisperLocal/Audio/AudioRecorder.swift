@@ -12,6 +12,17 @@ import os.lock
 /// - `level` and `isRecording` are `@Published`; writes are dispatched to the
 ///   main thread via `DispatchQueue.main.async` so subscribers on the main
 ///   actor see consistent values.
+///
+/// ## Input device selection and formats
+/// Selecting an input device means setting `kAudioOutputUnitProperty_CurrentDevice`
+/// on the input node's AUHAL. That updates `inputNode.inputFormat(forBus:)`
+/// immediately but leaves `inputNode.outputFormat(forBus:)` reporting the
+/// previous device forever. Installing a tap with the stale format makes AVFAudio
+/// raise an Objective-C exception that kills the process; passing `format: nil`
+/// resolves to the same stale value and fails `engine.start()` with
+/// `kAudioUnitErr_FormatNotSupported` (-10868). So: always tap with
+/// `inputFormat(forBus:)`, and rebuild the engine per session so no graph state
+/// survives a device change.
 final class AudioRecorder: @unchecked Sendable, Recording {
     @Published private(set) var level: Float = 0
 
@@ -20,10 +31,12 @@ final class AudioRecorder: @unchecked Sendable, Recording {
     }
     @Published private(set) var isRecording: Bool = false
 
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()
     private var samples: [Float] = []
     private var samplesLock = os_unfair_lock_s()
     private let targetFormat: AVAudioFormat
+    /// Built lazily from the first tap buffer, and rebuilt if the hardware
+    /// switches format mid-session. Only touched from the tap thread.
     private var converter: AVAudioConverter?
     private var tapCallbackCount: Int = 0
     private var conversionErrorCount: Int = 0
@@ -48,7 +61,11 @@ final class AudioRecorder: @unchecked Sendable, Recording {
         os_unfair_lock_unlock(&samplesLock)
         tapCallbackCount = 0
         conversionErrorCount = 0
+        converter = nil
 
+        // Discard any graph state left over from the previous session — it may
+        // reference a device or format that is no longer current.
+        engine = AVAudioEngine()
         let input = engine.inputNode
 
         if let uid = inputDeviceUID {
@@ -60,7 +77,13 @@ final class AudioRecorder: @unchecked Sendable, Recording {
             }
         }
 
-        let inputFormat = input.outputFormat(forBus: 0)
+        // `inputFormat(forBus:)` — NOT `outputFormat(forBus:)`. Only the former
+        // tracks the hardware after `setInput` switched the AUHAL's device;
+        // measured on a 44100 Hz → 48000 Hz switch, `outputFormat` keeps
+        // reporting the old device indefinitely. Installing a tap with that
+        // stale format is what used to raise the fatal AVFAudio exception, and
+        // `format: nil` is no safer — it resolves to the same stale value.
+        let inputFormat = input.inputFormat(forBus: 0)
         Log.info("AudioRecorder:input format sampleRate=\(inputFormat.sampleRate) channels=\(inputFormat.channelCount) commonFormat=\(inputFormat.commonFormat.rawValue)")
 
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
@@ -70,21 +93,30 @@ final class AudioRecorder: @unchecked Sendable, Recording {
             ])
         }
 
-        guard let conv = AVAudioConverter(from: inputFormat, to: targetFormat) else {
-            Log.info("AudioRecorder:ERROR — AVAudioConverter init failed (from \(inputFormat) to \(targetFormat))")
-            throw NSError(domain: "WhisperLocal.AudioRecorder", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "Audio converter init failed"
+        // The converter is still built from the first buffer we actually
+        // receive rather than from `inputFormat`, so a device that changes
+        // between here and the first callback cannot desync it.
+        do {
+            try ObjCException.catching {
+                input.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
+                    self?.process(buffer: buffer)
+                }
+                engine.prepare()
+            }
+        } catch {
+            Log.info("AudioRecorder:ERROR — installTap raised: \(error.localizedDescription)")
+            throw NSError(domain: "WhisperLocal.AudioRecorder", code: 3, userInfo: [
+                NSLocalizedDescriptionKey: "Audio input setup failed (\(error.localizedDescription))"
             ])
         }
-        converter = conv
 
-        input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
-            self?.process(buffer: buffer)
+        do {
+            try engine.start()
+        } catch {
+            input.removeTap(onBus: 0)
+            Log.info("AudioRecorder:ERROR — engine.start() failed: \(error.localizedDescription)")
+            throw error
         }
-
-        engine.prepare()
-        try engine.start()
         Log.info("AudioRecorder:engine started, isRunning=\(engine.isRunning)")
 
         DispatchQueue.main.async { [weak self] in
@@ -113,12 +145,30 @@ final class AudioRecorder: @unchecked Sendable, Recording {
 
     // MARK: - Private
 
+    /// Returns a converter from `inputFormat` to `targetFormat`, reusing the
+    /// existing one unless the incoming format changed.
+    private func converter(for inputFormat: AVAudioFormat) -> AVAudioConverter? {
+        if let existing = converter, existing.inputFormat == inputFormat {
+            return existing
+        }
+        guard let conv = AVAudioConverter(from: inputFormat, to: targetFormat) else {
+            Log.info("AudioRecorder:ERROR — AVAudioConverter init failed (from \(inputFormat) to \(targetFormat))")
+            return nil
+        }
+        Log.info("AudioRecorder:converter \(inputFormat.sampleRate) Hz / \(inputFormat.channelCount) ch → 16000 Hz / 1 ch")
+        converter = conv
+        return conv
+    }
+
     private func process(buffer: AVAudioPCMBuffer) {
         tapCallbackCount += 1
         if tapCallbackCount == 1 {
             Log.info("AudioRecorder:first tap callback — frameLength=\(buffer.frameLength) format=\(buffer.format)")
         }
-        guard let converter else { return }
+        guard buffer.format.sampleRate > 0, let converter = converter(for: buffer.format) else {
+            conversionErrorCount += 1
+            return
+        }
 
         let outCapacity = AVAudioFrameCount(
             Double(buffer.frameLength) * 16_000 / buffer.format.sampleRate
