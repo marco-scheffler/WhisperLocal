@@ -39,10 +39,17 @@ final class TextInjector {
 
         pb.clearContents()
         pb.setString(text, forType: .string)
+        // nspasteboard.org convention: clipboard managers skip transient
+        // content, so dictations don't pile up in their history.
+        pb.setData(Data(), forType: .transient)
+        let ownChangeCount = pb.changeCount
 
         postCommandV()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            // If anything was copied in the meantime, it is newer than the
+            // snapshot — keep it.
+            guard pb.changeCount == ownChangeCount else { return }
             snapshot.restore(to: pb)
         }
     }
@@ -57,4 +64,8 @@ final class TextInjector {
         down?.post(tap: .cghidEventTap)
         up?.post(tap: .cghidEventTap)
     }
+}
+
+extension NSPasteboard.PasteboardType {
+    static let transient = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
 }
