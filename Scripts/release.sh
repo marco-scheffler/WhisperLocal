@@ -47,8 +47,31 @@ echo "==> Packaging"
 mkdir -p dist
 DIST_ZIP="dist/WhisperLocal-${VERSION_NUMBER}.zip"
 rm -f "$DIST_ZIP"
-ditto -c -k --keepParent WhisperLocal.app "$DIST_ZIP"
+# --sequesterRsrc collects extended attributes (e.g. com.apple.provenance) under
+# __MACOSX/ at the archive root. Without it ditto stores them as AppleDouble
+# "._*" files next to their owners, i.e. inside the bundle. Archive Utility
+# folds them back into attributes, but `unzip` and other third-party tools
+# leave them as real files — unsealed resources that invalidate the signature,
+# so Gatekeeper rejects a correctly notarized app.
+ditto -c -k --sequesterRsrc --keepParent WhisperLocal.app "$DIST_ZIP"
 echo "Created $DIST_ZIP ($(du -h "$DIST_ZIP" | cut -f1))"
+
+# Check the app as a user gets it, unpacked by a non-Apple tool. Everything
+# above ran on the build directory and cannot see what unpacking does.
+echo "==> Verifying the unpacked archive"
+UNPACK="$(mktemp -d)"
+trap 'rm -rf "$UNPACK"' EXIT
+(cd "$UNPACK" && unzip -q "$ROOT/$DIST_ZIP")
+STRAY="$(find "$UNPACK/WhisperLocal.app" \( -name '._*' -o -name '.__*' \) | wc -l | tr -d ' ')"
+if [ "$STRAY" != "0" ]; then
+    echo "ERROR: $STRAY AppleDouble files ended up inside the bundle." >&2
+    exit 3
+fi
+codesign --verify --strict --deep "$UNPACK/WhisperLocal.app"
+if ! spctl -a -t exec "$UNPACK/WhisperLocal.app" 2>/dev/null; then
+    echo "ERROR: Gatekeeper rejects the unpacked app." >&2
+    exit 3
+fi
 
 echo "==> Tagging $VERSION"
 if git rev-parse "$VERSION" >/dev/null 2>&1; then
