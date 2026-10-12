@@ -12,7 +12,10 @@ private final class WhisperKitBox: @unchecked Sendable {
 actor WhisperEngine: Transcribing {
     private let modelName: String
     private let modelStore: ModelStore
-    private var pipelineBox: WhisperKitBox?
+    /// The in-flight or finished model load. Shared so that a transcription
+    /// requested during the launch warmup awaits that load instead of starting
+    /// a second download of the same model.
+    private var loadTask: Task<WhisperKitBox, Error>?
 
     /// Receives the progress fraction (0.0–1.0) while the model is downloading.
     /// Called on an unspecified actor — hop to MainActor before touching UI.
@@ -38,8 +41,23 @@ actor WhisperEngine: Transcribing {
     }
 
     func ensureLoaded() async throws {
-        if pipelineBox != nil { return }
+        _ = try await pipeline()
+    }
 
+    private func pipeline() async throws -> WhisperKitBox {
+        if let loadTask { return try await loadTask.value }
+        let task = Task { try await load() }
+        loadTask = task
+        do {
+            return try await task.value
+        } catch {
+            // Allow a later call to retry, unless one already has.
+            if loadTask == task { loadTask = nil }
+            throw error
+        }
+    }
+
+    private func load() async throws -> WhisperKitBox {
         let modelFolderURL: URL
         let expectedFolderName = "openai_whisper-\(modelName)"
         let candidate = modelStore.whisperModelDirectory
@@ -72,9 +90,10 @@ actor WhisperEngine: Transcribing {
             download: false
         )
         do {
-            pipelineBox = WhisperKitBox(try await WhisperKit(config))
+            let box = WhisperKitBox(try await WhisperKit(config))
             Log.info("WhisperEngine:model ready")
             onReady?()
+            return box
         } catch {
             Log.info("WhisperEngine:model load failed: \(error)")
             throw error
@@ -87,8 +106,7 @@ actor WhisperEngine: Transcribing {
     }
 
     func transcribe(samples: [Float], language: String?) async throws -> String {
-        try await ensureLoaded()
-        guard let box = pipelineBox else { return "" }
+        let box = try await pipeline()
         Log.info("WhisperEngine:transcribing \(samples.count) samples (\(Double(samples.count)/16000.0)s), language=\(language ?? "auto")")
         let options = DecodingOptions(
             task: .transcribe,
