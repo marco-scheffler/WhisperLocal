@@ -179,6 +179,28 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .recording)
     }
 
+    // MARK: Push-to-talk: the duration cap stops a take while the key is still held
+
+    @MainActor
+    func testPushToTalkStopsAtMaxDuration() async throws {
+        let controller = DictationController(
+            recorder: MockRecorder(),
+            transcriber: MockTranscriber(),
+            postProcessor: nil,
+            injector: TextInjector(),
+            overlay: OverlayWindow()
+        )
+        controller.recordingMode = .pushToTalk
+        controller.maxRecordingSeconds = 0.3
+
+        await controller.handleHotKey(pressed: true)
+        XCTAssertEqual(controller.state, .recording)
+
+        // No release — the cap alone must end the take.
+        try await waitForIdle(controller, timeout: 4.0)
+        XCTAssertEqual(controller.state, .idle)
+    }
+
     // MARK: Toggle: second press stops recording
 
     @MainActor

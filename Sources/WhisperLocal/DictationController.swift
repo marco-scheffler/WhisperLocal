@@ -33,10 +33,11 @@ final class DictationController: ObservableObject {
     /// RMS level under which audio counts as silence.
     var silenceLevelThreshold: Float = 0.01
 
-    /// Hard cap on recording duration in toggle mode (safety against runaway sessions).
+    /// Hard cap on recording duration in both modes (safety against runaway
+    /// sessions, and the recorder only buffers this much audio).
     var maxRecordingSeconds: TimeInterval = 60
 
-    private var silenceMonitor: Task<Void, Never>?
+    private var recordingMonitor: Task<Void, Never>?
     private var levelSubscription: AnyCancellable?
     private var lastLoudAt: Date = Date()
     private var recordingStartedAt: Date = Date()
@@ -87,15 +88,15 @@ final class DictationController: ObservableObject {
             state = .recording
             overlay.state.phase = .recording
             overlay.show()
-            if recordingMode == .toggle {
-                startSilenceMonitor()
-            }
+            startRecordingMonitor()
         } catch {
             await fail(message: "Mic error: \(error.localizedDescription)")
         }
     }
 
-    private func startSilenceMonitor() {
+    /// Enforces `maxRecordingSeconds` in both modes; in toggle mode also
+    /// auto-stops after `silenceTimeoutSeconds` of silence.
+    private func startRecordingMonitor() {
         recordingStartedAt = Date()
         lastLoudAt = Date()
 
@@ -109,10 +110,11 @@ final class DictationController: ObservableObject {
                 }
             }
 
-        silenceMonitor?.cancel()
+        recordingMonitor?.cancel()
         let silenceTimeout = silenceTimeoutSeconds
         let maxDuration = maxRecordingSeconds
-        silenceMonitor = Task { [weak self] in
+        let stopsOnSilence = recordingMode == .toggle
+        recordingMonitor = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 200_000_000) // 200 ms
                 guard let self else { return }
@@ -128,7 +130,7 @@ final class DictationController: ObservableObject {
                 }
                 // Require at least 1 s of recording before silence can trigger,
                 // so a brief lead-in pause does not abort the take.
-                if recordingFor > 1.0 && silenceFor >= silenceTimeout {
+                if stopsOnSilence && recordingFor > 1.0 && silenceFor >= silenceTimeout {
                     Log.info("DictationController:silence \(String(format: "%.2f", silenceFor))s — auto-stop")
                     self.triggerStopFromMonitor()
                     return
@@ -137,8 +139,8 @@ final class DictationController: ObservableObject {
         }
     }
 
-    /// Hop the stop-and-process call into a fresh Task so the silenceMonitor
-    /// task can be cancelled by stopSilenceMonitor() without that cancellation
+    /// Hop the stop-and-process call into a fresh Task so the recordingMonitor
+    /// task can be cancelled by stopRecordingMonitor() without that cancellation
     /// propagating into the awaited transcribe call.
     private func triggerStopFromMonitor() {
         Task { @MainActor [weak self] in
@@ -146,16 +148,16 @@ final class DictationController: ObservableObject {
         }
     }
 
-    private func stopSilenceMonitor() {
-        silenceMonitor?.cancel()
-        silenceMonitor = nil
+    private func stopRecordingMonitor() {
+        recordingMonitor?.cancel()
+        recordingMonitor = nil
         levelSubscription?.cancel()
         levelSubscription = nil
     }
 
     private func stopAndProcess() async {
         guard state == .recording else { return }
-        stopSilenceMonitor()
+        stopRecordingMonitor()
         let capturedSamples = recorder.stop()
 
         // Trim trailing silence (captured by the auto-stop) before transcription
@@ -215,7 +217,7 @@ final class DictationController: ObservableObject {
     }
 
     private func fail(message: String) async {
-        stopSilenceMonitor()
+        stopRecordingMonitor()
         Log.info("DictationController:fail — \(message)")
         overlay.state.phase = .error(message)
         // When recording never started the overlay was never shown, so setting

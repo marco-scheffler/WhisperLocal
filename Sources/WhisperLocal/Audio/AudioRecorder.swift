@@ -304,12 +304,12 @@ final class AudioRecorder: @unchecked Sendable, Recording {
         let newLevel = sqrtf(rms / Float(frames))
 
         os_unfair_lock_lock(&samplesLock)
-        samples.append(contentsOf: newSamples)
-        // Cap at 60 seconds of audio to bound memory usage.
+        // Cap at 60 seconds of audio to bound memory usage. Drop the overflow
+        // rather than the start, so a take that runs long loses its end — the
+        // part `DictationController`'s duration cap would cut off anyway —
+        // instead of silently losing its beginning.
         let maxSamples = 16_000 * 60
-        if samples.count > maxSamples {
-            samples.removeFirst(samples.count - maxSamples)
-        }
+        samples.append(contentsOf: newSamples.prefix(max(0, maxSamples - samples.count)))
         os_unfair_lock_unlock(&samplesLock)
 
         DispatchQueue.main.async { [weak self] in
