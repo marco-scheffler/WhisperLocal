@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct PermissionsView: View {
     @State private var status: PermissionStatus = PermissionsManager.current()
@@ -15,10 +16,14 @@ struct PermissionsView: View {
             row("Accessibility (pasting)", granted: status.accessibility) {
                 PermissionsManager.openAccessibilitySettings()
             }
-            row("Input Monitoring (hotkey)", granted: true) {
-                PermissionsManager.openInputMonitoringSettings()
+            row("Input Monitoring (hotkey)", granted: status.inputMonitoring) {
+                if status.inputMonitoring {
+                    PermissionsManager.openInputMonitoringSettings()
+                } else {
+                    PermissionsManager.requestInputMonitoring()
+                }
             }
-            if !status.accessibility || !status.microphone {
+            if !status.accessibility || !status.microphone || !status.inputMonitoring {
                 Text("After granting in System Settings, quit and reopen WhisperLocal for the change to take effect.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

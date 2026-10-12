@@ -4,14 +4,22 @@ import AVFoundation
 struct PermissionStatus {
     var microphone: Bool
     var accessibility: Bool
+    var inputMonitoring: Bool
 }
 
 enum PermissionsManager {
     static func current() -> PermissionStatus {
         PermissionStatus(
             microphone: AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
-            accessibility: AXIsProcessTrusted()
+            accessibility: AXIsProcessTrusted(),
+            inputMonitoring: CGPreflightListenEventAccess()
         )
+    }
+
+    /// Adds the app to the Input Monitoring list in System Settings and shows
+    /// the system prompt the first time. Takes effect after a relaunch.
+    static func requestInputMonitoring() {
+        _ = CGRequestListenEventAccess()
     }
 
     static func requestMicrophone() async -> Bool {
