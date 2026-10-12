@@ -184,7 +184,7 @@ final class DictationController: ObservableObject {
         // Strip known Whisper hallucinations (subtitle credits, trailing "Vielen
         // Dank") as a safety net in case any slipped past the silence trim.
         let raw = HallucinationFilter.strip(transcript)
-        Log.info("DictationController:transcript=\"\(transcript)\" filtered=\"\(raw)\"")
+        Log.sensitive("DictationController:transcript=\"\(transcript)\" filtered=\"\(raw)\"")
 
         if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             await fail(message: "No speech detected")
@@ -196,7 +196,7 @@ final class DictationController: ObservableObject {
             state = .postProcessing
             overlay.state.phase = .postProcessing
             let cleaned = (try? await post.clean(text: raw)) ?? raw
-            Log.info("DictationController:cleaned=\"\(cleaned)\"")
+            Log.sensitive("DictationController:cleaned=\"\(cleaned)\"")
             text = cleaned
         }
 

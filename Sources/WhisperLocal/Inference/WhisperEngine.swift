@@ -101,7 +101,7 @@ actor WhisperEngine: Transcribing {
                 .map(\.text)
                 .joined(separator: " ")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            Log.info("WhisperEngine:transcript = \(text)")
+            Log.sensitive("WhisperEngine:transcript = \(text)")
             return text
         } catch {
             Log.info("WhisperEngine:transcribe failed: \(error)")
