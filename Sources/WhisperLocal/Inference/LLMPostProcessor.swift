@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 #if canImport(FoundationModels)
 import FoundationModels
@@ -56,20 +57,36 @@ actor LLMPostProcessor: TextCleaning {
     }
 #endif
 
-    private static func withTimeout<T: Sendable>(
+    /// Returns `op`'s result, or `fallback` once `seconds` have passed. Unlike a
+    /// task group — which waits for every child before returning — this returns
+    /// on time even if `op` ignores cancellation; `op` is cancelled and left to
+    /// finish in the background.
+    static func withTimeout<T: Sendable>(
         seconds: Double,
         fallback: T,
         _ op: @escaping @Sendable () async -> T
     ) async -> T {
-        await withTaskGroup(of: T.self) { group in
-            group.addTask { await op() }
-            group.addTask {
+        await withCheckedContinuation { continuation in
+            let first = FirstResult(continuation)
+            let work = Task { first.resume(await op()) }
+            Task {
                 try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                return fallback
+                work.cancel()
+                first.resume(fallback)
             }
-            let first = await group.next() ?? fallback
-            group.cancelAll()
-            return first
         }
+    }
+}
+
+/// Resumes a continuation with whichever value arrives first and ignores the rest.
+private final class FirstResult<T: Sendable>: Sendable {
+    private let continuation: Mutex<CheckedContinuation<T, Never>?>
+
+    init(_ continuation: CheckedContinuation<T, Never>) {
+        self.continuation = Mutex(continuation)
+    }
+
+    func resume(_ value: T) {
+        continuation.withLock { $0.take() }?.resume(returning: value)
     }
 }
