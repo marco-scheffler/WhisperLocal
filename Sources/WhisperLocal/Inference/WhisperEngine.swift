@@ -10,7 +10,7 @@ private final class WhisperKitBox: @unchecked Sendable {
 }
 
 actor WhisperEngine: Transcribing {
-    private let modelName: String
+    let modelName: String
     private let modelStore: ModelStore
     /// The in-flight or finished model load. Shared so that a transcription
     /// requested during the launch warmup awaits that load instead of starting

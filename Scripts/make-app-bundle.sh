@@ -36,7 +36,7 @@ DEV_ID=$(security find-identity -v -p codesigning 2>/dev/null \
 
 if [ -n "${SIGN_IDENTITY:-}" ]; then
     echo "Signing for notarization with: $SIGN_IDENTITY"
-    codesign --force --deep \
+    codesign --force \
         --sign "$SIGN_IDENTITY" \
         --options runtime \
         --entitlements "$ENTITLEMENTS" \
@@ -44,7 +44,7 @@ if [ -n "${SIGN_IDENTITY:-}" ]; then
         "$APP"
 elif [ -n "$DEV_ID" ]; then
     echo "Signing with Developer ID (hardened runtime): $DEV_ID"
-    codesign --force --deep \
+    codesign --force \
         --sign "$DEV_ID" \
         --options runtime \
         --entitlements "$ENTITLEMENTS" \
@@ -52,14 +52,14 @@ elif [ -n "$DEV_ID" ]; then
         "$APP"
 elif security find-certificate -c "WhisperLocal Dev" >/dev/null 2>&1; then
     echo "Signing with self-signed dev identity: WhisperLocal Dev"
-    if ! codesign --force --deep --sign "WhisperLocal Dev" "$APP" 2>&1; then
+    if ! codesign --force --sign "WhisperLocal Dev" "$APP" 2>&1; then
         echo "Codesign failed; falling back to ad-hoc." >&2
-        codesign --force --deep --sign - "$APP"
+        codesign --force --sign - "$APP"
     fi
 else
     echo "No signing identity found; using ad-hoc."
     echo "Hint: run ./Scripts/create-dev-cert.sh for stable TCC permissions."
-    codesign --force --deep --sign - "$APP"
+    codesign --force --sign - "$APP"
 fi
 
 echo "Built $APP"

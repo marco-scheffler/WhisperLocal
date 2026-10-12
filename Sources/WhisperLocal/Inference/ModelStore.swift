@@ -19,10 +19,4 @@ struct ModelStore {
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
-
-    var llmModelDirectory: URL {
-        let url = baseDirectory.appendingPathComponent("llm")
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
-    }
 }

@@ -90,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Log.info("WhisperLocal launched")
 
-        Self.modelStatus.modelName = "large-v3-v20240930_626MB"
+        Self.modelStatus.modelName = whisper.modelName
 
         // Kick off model warmup so the first transcription does not stall on download.
         Task { [weak self] in

@@ -15,5 +15,4 @@ enum OverlayPhase: Equatable {
 final class OverlayState: ObservableObject {
     @Published var phase: OverlayPhase = .hidden
     @Published var level: Float = 0
-    @Published var partialText: String = ""
 }
