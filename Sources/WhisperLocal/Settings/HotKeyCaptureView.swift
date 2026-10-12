@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import HotKey
 
 struct HotKeyCaptureView: NSViewRepresentable {
     @Binding var binding: HotKeyBinding
@@ -76,26 +77,11 @@ struct HotKeyCaptureView: NSViewRepresentable {
         }
 
         private func describe(binding: HotKeyBinding) -> String {
-            var parts: [String] = []
-            let f = binding.modifierFlags
-            if f.contains(.control) { parts.append("\u{2303}") }
-            if f.contains(.option) { parts.append("\u{2325}") }
-            if f.contains(.shift) { parts.append("\u{21E7}") }
-            if f.contains(.command) { parts.append("\u{2318}") }
-            if binding.keyCode != 0 {
-                parts.append(KeyName.from(keyCode: binding.keyCode) ?? "key(\(binding.keyCode))")
+            var parts = [binding.modifierFlags.description]
+            if let keyCode = binding.keyCode {
+                parts.append(Key(carbonKeyCode: keyCode)?.description ?? "key(\(keyCode))")
             }
-            return parts.joined(separator: " ")
+            return parts.filter { !$0.isEmpty }.joined(separator: " ")
         }
-    }
-}
-
-enum KeyName {
-    static func from(keyCode: UInt32) -> String? {
-        let map: [UInt32: String] = [
-            0x31: "Space", 0x24: "Return", 0x35: "Escape", 0x33: "Delete",
-            0x00: "A", 0x0B: "B", 0x08: "C", 0x02: "D", 0x0E: "E",
-        ]
-        return map[keyCode]
     }
 }

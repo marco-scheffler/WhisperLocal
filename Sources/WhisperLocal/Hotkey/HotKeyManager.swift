@@ -4,7 +4,7 @@ import HotKey
 /// Manages a single global hotkey binding.
 ///
 /// Two modes are supported, determined by the active `HotKeyBinding`:
-/// - **Modifier-only push-to-talk**: `keyCode == 0` with a non-empty modifier set.
+/// - **Modifier-only push-to-talk**: `keyCode == nil` with a non-empty modifier set.
 ///   Uses `NSEvent.addGlobalMonitorForEvents(.flagsChanged)` to detect when the
 ///   full modifier combo is held or released.
 /// - **Normal key combo** (e.g. ⌘⇧Space): registered via the `soffes/HotKey` library.
@@ -33,10 +33,10 @@ final class HotKeyManager {
     }
 
     private func apply(binding: HotKeyBinding) {
-        if binding.keyCode == 0 && !binding.modifierFlags.isEmpty {
+        if let keyCode = binding.keyCode {
+            installKeyHotKey(keyCode: keyCode, modifierFlags: binding.modifierFlags)
+        } else if !binding.modifierFlags.isEmpty {
             installModifierOnlyMonitor(flags: binding.modifierFlags)
-        } else {
-            installKeyHotKey(binding: binding)
         }
     }
 
@@ -56,9 +56,9 @@ final class HotKeyManager {
         }
     }
 
-    private func installKeyHotKey(binding: HotKeyBinding) {
-        guard let key = Key(carbonKeyCode: UInt32(binding.keyCode)) else { return }
-        let hk = HotKey(key: key, modifiers: NSEvent.ModifierFlags(rawValue: binding.modifierFlagsRaw))
+    private func installKeyHotKey(keyCode: UInt32, modifierFlags: NSEvent.ModifierFlags) {
+        guard let key = Key(carbonKeyCode: keyCode) else { return }
+        let hk = HotKey(key: key, modifiers: modifierFlags)
         hk.keyDownHandler = { [weak self] in self?.onPressed?() }
         hk.keyUpHandler = { [weak self] in self?.onReleased?() }
         hotKey = hk
