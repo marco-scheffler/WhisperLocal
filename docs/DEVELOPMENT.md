@@ -111,7 +111,7 @@ Click the menu bar icon → **Settings…**
 
 | Layer | Component | Responsibility |
 |---|---|---|
-| Capture | `AudioRecorder` | AVAudioEngine → AVAudioConverter → 16 kHz mono float32. Selectable CoreAudio input device. RMS level publisher for the overlay. |
+| Capture | `AudioRecorder` | `AVCaptureSession` delivering 16 kHz mono float32. Selectable input device. Opens only that device, so Bluetooth headphones stay in A2DP while another mic is used. RMS level publisher for the overlay. |
 | Hotkey | `HotKeyManager` | `soffes/HotKey` for key combos; global `NSEvent.flagsChanged` monitor for modifier-only push-to-talk. |
 | STT | `WhisperEngine` | Actor wrapping `WhisperKit`. Downloads `large-v3-v20240930_626MB` on first use via `WhisperKit.download(progressCallback:)`. |
 | Cleanup | `LLMPostProcessor` | `FoundationModels.LanguageModelSession`. 3 s timeout via `TaskGroup` race — falls back to raw transcript. |

@@ -1,4 +1,3 @@
-import AVFoundation
 import CoreAudio
 import Foundation
 
@@ -6,20 +5,6 @@ struct AudioInputDevice: Identifiable, Hashable, Sendable {
     let id: AudioDeviceID
     let uid: String
     let name: String
-}
-
-enum AudioDeviceError: Error, LocalizedError {
-    case deviceNotFound(uid: String)
-    case noInputNodeAudioUnit
-    case setDeviceFailed(OSStatus)
-
-    var errorDescription: String? {
-        switch self {
-        case .deviceNotFound(let uid): return "Audio device not found (uid=\(uid))"
-        case .noInputNodeAudioUnit: return "AVAudioEngine input node has no audio unit"
-        case .setDeviceFailed(let status): return "Failed to set input device (OSStatus=\(status))"
-        }
-    }
 }
 
 enum AudioDeviceManager {
@@ -47,29 +32,6 @@ enum AudioDeviceManager {
         )
         guard status == noErr, deviceID != 0 else { return nil }
         return stringProperty(of: deviceID, selector: kAudioDevicePropertyDeviceUID)
-    }
-
-    /// Set the engine input node's audio unit current device to the device with this UID.
-    /// Must be called before `engine.start()`.
-    static func setInput(engine: AVAudioEngine, deviceUID: String) throws {
-        guard let device = inputDevices().first(where: { $0.uid == deviceUID }) else {
-            throw AudioDeviceError.deviceNotFound(uid: deviceUID)
-        }
-        guard let audioUnit = engine.inputNode.audioUnit else {
-            throw AudioDeviceError.noInputNodeAudioUnit
-        }
-        var id = device.id
-        let status = AudioUnitSetProperty(
-            audioUnit,
-            kAudioOutputUnitProperty_CurrentDevice,
-            kAudioUnitScope_Global,
-            0,
-            &id,
-            UInt32(MemoryLayout<AudioDeviceID>.size)
-        )
-        guard status == noErr else {
-            throw AudioDeviceError.setDeviceFailed(status)
-        }
     }
 
     // MARK: - Private CoreAudio helpers
