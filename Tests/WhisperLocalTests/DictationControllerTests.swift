@@ -29,10 +29,12 @@ final class MockRecorder: Recording, @unchecked Sendable {
 final class MockTranscriber: Transcribing, @unchecked Sendable {
     var output: String = "hallo welt"
     var shouldThrow: Bool = false
+    private(set) var transcribeCallCount = 0
 
     func ensureLoaded() async throws {}
 
     func transcribe(samples: [Float], language: String?) async throws -> String {
+        transcribeCallCount += 1
         if shouldThrow { throw NSError(domain: "test", code: 1) }
         return output
     }
@@ -106,6 +108,56 @@ final class DictationControllerTests: XCTestCase {
         await controller.handleHotKey(pressed: false)
         try await waitForIdle(controller)
         XCTAssertEqual(controller.state, .idle)
+    }
+
+    // MARK: Silent take never reaches Whisper, which would invent text from it
+
+    @MainActor
+    func testSilentTakeIsNotTranscribed() async throws {
+        let recorder = MockRecorder()
+        recorder.stubbedSamples = [Float](repeating: 0.001, count: 16_000)
+        let transcriber = MockTranscriber()
+
+        let controller = DictationController(
+            recorder: recorder,
+            transcriber: transcriber,
+            postProcessor: nil,
+            injector: TextInjector(),
+            overlay: OverlayWindow()
+        )
+        controller.recordingMode = .pushToTalk
+
+        await controller.handleHotKey(pressed: true)
+        await controller.handleHotKey(pressed: false)
+        try await waitForIdle(controller, timeout: 4.0)
+
+        XCTAssertEqual(transcriber.transcribeCallCount, 0)
+        XCTAssertEqual(controller.state, .idle)
+    }
+
+    // MARK: Audible take is transcribed
+
+    @MainActor
+    func testAudibleTakeIsTranscribed() async throws {
+        let recorder = MockRecorder()
+        recorder.stubbedSamples = [Float](repeating: 0.1, count: 16_000)
+        let transcriber = MockTranscriber()
+        transcriber.output = ""   // empty → skip injection
+
+        let controller = DictationController(
+            recorder: recorder,
+            transcriber: transcriber,
+            postProcessor: nil,
+            injector: TextInjector(),
+            overlay: OverlayWindow()
+        )
+        controller.recordingMode = .pushToTalk
+
+        await controller.handleHotKey(pressed: true)
+        await controller.handleHotKey(pressed: false)
+        try await waitForIdle(controller, timeout: 4.0)
+
+        XCTAssertEqual(transcriber.transcribeCallCount, 1)
     }
 
     // MARK: Mic error → state returns to idle after failure delay

@@ -10,7 +10,18 @@ import Foundation
 /// without touching real speech (we only cut from the end, never the start or
 /// middle).
 enum AudioTrimming {
-    /// Returns `samples` with trailing silence removed.
+    /// Whether any part of `samples` reaches `threshold`. A take without any is
+    /// silence, and Whisper would invent text for it.
+    static func containsSignal(
+        _ samples: [Float],
+        sampleRate: Int = 16_000,
+        threshold: Float = 0.01
+    ) -> Bool {
+        lastLoudEnd(in: samples, sampleRate: sampleRate, threshold: threshold) != nil
+    }
+
+    /// Returns `samples` with trailing silence removed. A clip with no signal at
+    /// all is returned unchanged; check it with `containsSignal`.
     ///
     /// - Parameters:
     ///   - samples: 16 kHz mono float32 PCM.
@@ -24,11 +35,20 @@ enum AudioTrimming {
         threshold: Float = 0.01,
         keepTailSeconds: Double = 0.3
     ) -> [Float] {
-        guard !samples.isEmpty else { return samples }
+        guard let lastLoudEnd = lastLoudEnd(in: samples, sampleRate: sampleRate, threshold: threshold) else {
+            return samples
+        }
 
+        let keepTail = Int(Double(sampleRate) * keepTailSeconds)
+        let cutoff = min(samples.count, lastLoudEnd + keepTail)
+        if cutoff >= samples.count { return samples }
+        return Array(samples[0..<cutoff])
+    }
+
+    /// End index of the last 10 ms window whose RMS reaches `threshold`.
+    private static func lastLoudEnd(in samples: [Float], sampleRate: Int, threshold: Float) -> Int? {
         let windowSize = max(1, sampleRate / 100) // 10 ms windows
         var idx = samples.count
-        var lastLoudEnd = -1
 
         // Walk backward from the end, skipping silent windows until we hit the
         // first window whose RMS is at or above the threshold.
@@ -41,19 +61,10 @@ enum AudioTrimming {
             }
             let rms = (sqrtf(sum / Float(idx - start)))
             if rms >= threshold {
-                lastLoudEnd = idx
-                break
+                return idx
             }
             idx = start
         }
-
-        // Entire clip is below threshold → no speech; return it unchanged so the
-        // caller's "No speech / Too short" handling can decide what to do.
-        if lastLoudEnd < 0 { return samples }
-
-        let keepTail = Int(Double(sampleRate) * keepTailSeconds)
-        let cutoff = min(samples.count, lastLoudEnd + keepTail)
-        if cutoff >= samples.count { return samples }
-        return Array(samples[0..<cutoff])
+        return nil
     }
 }

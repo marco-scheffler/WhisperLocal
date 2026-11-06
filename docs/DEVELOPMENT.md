@@ -195,7 +195,7 @@ WhisperLocal/
 | Symptom | What to check |
 |---|---|
 | Overlay says "Too short — hold longer" but you held for 5 s | Look in Settings → Logs for `AudioRecorder` entries. Likely wrong input device — pick a specific mic in Settings → Microphone instead of "System default". |
-| "No speech detected" | Whisper transcribed silence. Try Settings → Language → German (auto-detect can mispick on short utterances). |
+| "No speech detected" | The take stayed below the silence threshold, or Whisper returned nothing. Check `peakLevel` in Settings → Logs: `0.0000` means digital silence, e.g. the built-in mic with the lid closed; a low value means raising the input volume in System Settings → Sound → Input. If the level looks fine, try Settings → Language → German (auto-detect can mispick on short utterances). |
 | Transcript comes out in English when you spoke German | Same as above. Set Language to German explicitly. |
 | `transcribe failed: CancellationError()` | Fixed in `573ef0b` — silence-monitor self-cancellation. If you're seeing this on master, file an issue. |
 | Permissions reset on every rebuild | You're signing ad-hoc. Run `./Scripts/create-dev-cert.sh` once and rebuild. |

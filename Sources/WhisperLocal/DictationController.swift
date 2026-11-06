@@ -171,6 +171,11 @@ final class DictationController: ObservableObject {
             return
         }
 
+        guard AudioTrimming.containsSignal(samples) else {
+            await fail(message: "No speech detected")
+            return
+        }
+
         state = .transcribing
         overlay.state.phase = .transcribing
 
