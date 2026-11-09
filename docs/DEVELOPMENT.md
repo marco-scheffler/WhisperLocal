@@ -87,7 +87,8 @@ Click the menu bar icon → **Settings…**
 
 - **Nothing leaves your Mac at runtime.** Whisper runs locally via CoreML. The optional LLM cleanup uses Apple's on-device FoundationModels which run in a sandboxed XPC process. Audio is never transmitted.
 - **No analytics, no crash reporting, no third-party SDKs.** The only network activity at runtime is zero.
-- **First-launch download:** the Whisper model (~600 MB) is fetched from `argmaxinc/whisperkit-coreml` on HuggingFace and cached in `~/Library/Application Support/io.github.marco-scheffler.WhisperLocal/Models/`. After that there is no network activity at all.
+- **Update check:** only when you pick **Check for Updates…** in the menu bar menu, the app asks GitHub's public API for the latest release (`api.github.com/repos/marco-scheffler/WhisperLocal/releases/latest`). It never checks on its own, and nothing about you or your Mac is sent beyond what any HTTPS request carries.
+- **First-launch download:** the Whisper model (~600 MB) is fetched from `argmaxinc/whisperkit-coreml` on HuggingFace and cached in `~/Library/Application Support/io.github.marco-scheffler.WhisperLocal/Models/`. After that the only network request is the manual update check.
 - **Local LLM model:** none. FoundationModels is a system framework — its weights ship with macOS and are shared across apps.
 - **Pasteboard:** when injecting text we briefly write to the system clipboard, post ⌘V, then restore the previous clipboard contents after 600 ms. We do not read your existing clipboard.
 

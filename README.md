@@ -64,11 +64,14 @@ That's it. The cleaned transcript is pasted wherever your cursor is.
 
 Every setting — hotkey, language, microphone, post-processing, autostart — lives in the menu bar icon's **Settings…** window.
 
+The menu shows the installed version; **Check for Updates…** tells you whether a newer release is out and opens its download page.
+
 ## Privacy
 
 - Whisper runs locally via [WhisperKit](https://github.com/argmaxinc/argmax-oss-swift) (CoreML)
 - LLM cleanup uses Apple's on-device [FoundationModels](https://developer.apple.com/documentation/foundationmodels)
 - The Whisper model is downloaded once from HuggingFace; everything else stays on your Mac
+- **Check for Updates…** in the menu asks GitHub for the latest release, only when you click it
 - No analytics, no crash reporting, no third-party SDKs
 - [Read the privacy section in the docs](docs/DEVELOPMENT.md#privacy) for details
 
