@@ -135,6 +135,46 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .idle)
     }
 
+    // MARK: Exact zeros are reported as a missing mic signal, not as no speech
+
+    @MainActor
+    func testDigitalSilenceReportsMissingMicSignal() async throws {
+        let quiet = try await errorMessage(forSamples: [Float](repeating: 0.001, count: 16_000))
+        XCTAssertEqual(quiet, "No speech detected")
+
+        let zeros = try await errorMessage(forSamples: [Float](repeating: 0, count: 16_000))
+        XCTAssertEqual(zeros, "No signal from mic — muted elsewhere?")
+    }
+
+    /// Runs one push-to-talk take with `samples` and returns the error the
+    /// overlay shows before it hides again.
+    @MainActor
+    private func errorMessage(forSamples samples: [Float]) async throws -> String? {
+        let recorder = MockRecorder()
+        recorder.stubbedSamples = samples
+        let overlay = OverlayWindow()
+        let controller = DictationController(
+            recorder: recorder,
+            transcriber: MockTranscriber(),
+            postProcessor: nil,
+            injector: TextInjector(),
+            overlay: overlay
+        )
+        controller.recordingMode = .pushToTalk
+
+        await controller.handleHotKey(pressed: true)
+        let release = Task { await controller.handleHotKey(pressed: false) }
+
+        var message: String?
+        let deadline = Date().addingTimeInterval(3.0)
+        while message == nil, Date() < deadline {
+            if case .error(let shown) = overlay.state.phase { message = shown }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        await release.value
+        return message
+    }
+
     // MARK: Audible take is transcribed
 
     @MainActor

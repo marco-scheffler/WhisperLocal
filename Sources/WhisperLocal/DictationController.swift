@@ -172,7 +172,12 @@ final class DictationController: ObservableObject {
         }
 
         guard AudioTrimming.containsSignal(samples) else {
-            await fail(message: "No speech detected")
+            // A real microphone always picks up some noise. Exact zeros mean the
+            // system delivered no signal at all, e.g. while a call app such as
+            // Teams has the microphone muted, so say that instead of blaming
+            // the speaker.
+            let digitalSilence = samples.allSatisfy { $0 == 0 }
+            await fail(message: digitalSilence ? "No signal from mic — muted elsewhere?" : "No speech detected")
             return
         }
 
